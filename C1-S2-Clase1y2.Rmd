@@ -1,0 +1,466 @@
+---
+title: "R para ciencias, nivel 1.2"
+Subtitle: "Programa de Certificación Especializado Data Science: Estadística y Análisis de Datos en R"
+Author: "Bryan Antony Quispe Ramos"
+output:
+  pdf_document: 
+    number_sections: yes
+    toc: yes
+    highlight: pygments
+  html_document:
+    theme: cosmo
+editor_options: 
+  chunk_output_type: console
+---
+
+\pagebreak
+
+# [Recordemos lo aprendido la clase anterior]{.ul}
+
+# **Crea rangos en R**
+
+Coloca aquí tus anotaciones...
+
+Los rangos pueden ser creados con el símbolo dos puntos `:` . Antes de los dos puntos colocas el número de inicio; luego de los dos puntos, el de fin. No importar de qué numero a qué numero quieres crear el rango, R lo hará por ti.
+
+## Ejercicios A
+
+```{r eval=FALSE}
+# Puedes ahorrarte el escribir del 1 al 5
+1:5
+
+# O ahorrarte el escribir del 100 al 500
+100:500
+
+```
+
+```{r eval=FALSE}
+# Asigna a la variable llamada dias.a, los números del 1 al 365
+# de las tres maneras aprendidas anteriormente
+dias.a <- 1:365
+1:365 -> dias.a
+dias.a = 1:365
+
+# Ahora muestra el contenido de dias.a ¿cómo realizas esto?
+# Ejecutándo el nombre de la variable
+dias.a
+
+```
+
+**Ahora crea un nuevo script y ejecuta la variable `dias.a` allí ¿Se puede ejecutar o no aparece nada?**
+
+Rpta.- YES
+
+\pagebreak
+
+# **Las comillas y el texto en R**
+
+Todo lo que coloques dentro de comillas R lo identificará como texto. Sin comillas, R lo trata de identificar como el nombre de una variable.
+
+## Ejercicios B
+
+```{r eval=FALSE}
+# ¿Qué pasa si coloco la palabra amarillo y la ejecuto?
+# Sale Error
+
+# ¿Y si coloco “amarillo” y lo ejecuto?
+"amarillo" #funciona
+```
+
+# **Estructuras de datos: Clases de variables**
+
+Ya sabemos que toda variable u objeto tiene dos características fundamentales: clase y estructura. **Reconozcamos** las clases y practiquemos la **coerción** (**forzar cambios**) de clases. Esta vez tu mismo crearás el **code chunk** en él trabajarás ejercicios guiados. Clic en el menú **Insert/Code Chunk/R** o sencillamente con el atajo en el teclado **Ctrl (o Command) + Alt + i.**
+
+## Ejercicios C
+
+```{r eval=FALSE}
+# Crea la variable num que contenga el número 100
+num <- 100
+
+# Crea la variable palabra que contenga la palabra "Sudamérica"
+palabra <- "Sudamerica"
+
+# Crea la variable logic que contenga verdadero
+logic <- TRUE
+
+```
+
+Aprendamos el uso de las funciones `class()`
+
+```{r eval=FALSE}
+# Identifica la clase de las variables creadas anteriormente
+class(cien)
+class(palabra)
+class(logic)
+```
+
+## **Conoce las funciones del grupo `as()`**: Coerción
+
+`TRUE` y `FALSE` son palabras lógicas y no requieren de tener comillas para ser interpretadas como verdadero y falso. Ahora, aprendamos el uso de las funciones del grupo `as()`
+
+```{r eval=FALSE}
+# Funciones del grupo as()
+as.integer()
+as.numeric()
+as.character()
+as.logical()
+```
+
+```{r eval=FALSE}
+# Coerciona num a la clase "intereger" y reemplaza el contenido de num
+num <- as.integer(num)
+
+# Verifica la clase num
+class(num) # "integer"
+
+# Coerciona num a la clase "logical"
+num <- as.logical(num)
+
+# Cambia el contenido de num a 0
+num <- 0
+
+# Vuelve a coercionarlo a logical
+num <- as.logical(num)
+num #  FALSE
+```
+
+Como viste, al coercionar números, todos los valores que no sean `0` son `TRUE`, y los valores `0` se vuelven `FALSE`. Se puede coercionar numeric/integer a character, pero no character a numeric/integer.
+
+## **Conoce las funciones del grupo `is()`**: Preguntas Lógicas
+
+```{r eval=FALSE}
+# Para preguntas si una variable es de una CLASE en particular
+is.character()
+is.integer()
+is.numeric()
+
+# O si es de una ESTRUCTURA en particular
+is.vector()
+is.factor()
+is.list()
+is.matrix()
+is.data.frame()
+is()
+```
+
+Crea un **code chunk** para probar ver de qué estructura son las variables `num`, `palabra` y `logic`.
+
+```{r eval=FALSE}
+str(num) #  logi FALSE
+str(palabra) # chr "Sudamerica"
+str(logic) # logi TRUE
+
+is(num) # "logical" "vector"
+is(palabra) # [1] "character"           "vector"
+# "data.frameRowLabels" [4] "SuperClassMethod"
+is(logic) #"logical" "vector" 
+```
+
+\pagebreak
+
+# **Estructuras de datos: Estructuras de variables**
+
+## Ejercicios D
+
+### Vectores
+
+```{r eval=FALSE}
+# Crea un vector numérico y guardalo con el nombre vect.n
+vect.n <- c(1,2,3,4,5)
+
+# Crea un vector de caracteres y guardalo con el nombre vect.ch
+vect.ch <- c("Colombia", "Peru","Ecuador","Chile","Bolivia")
+
+# Crea un vector de lógico y guardalo con el nombre vect.l
+vect.l <- c(T,T,F,F,F)
+
+```
+
+Es muy útil aprender a manejar funciones que nos permitan crear vectores especiales de manera sencilla. Conoce las funciones `rep()`, `seq()`, `paste()` y `paste0()`.
+
+```{r eval=FALSE}
+# Aprendamos a usar la función de repetición
+rep("America",10)
+c(rep("America",10),rep("Europa",20))
+c(rep("America",10),rep("Europa",20),"Peru","Colombia")
+#intercalando
+rep(c("America","Europa"),10)
+c(rep(c("America","Europa"),10),rep(c("Peru","Colombia"),10))
+
+# Aprendamos a usar la función de secuencias
+seq(0,100,5) # del 0 al 100 cada 5
+seq(100,0,-5) # a la inversa
+seq(27,80,3)
+seq(0,1,length=10) # 10 numeros del 0 al 1
+# Aprendamos a usar la función paste() y paste0()
+paste("Localidad",1:10)
+paste0("Localidad_",1:10)
+
+# Ambos son identicos
+identical(paste("Localidad",1:10),paste0("Localidad_",1:10))
+# False
+
+```
+
+### Factores
+
+Los factores son importantísimos para definir niveles de análisis, por ejemplo, en un ANOVA, o para colorear un gráfico por categorías.
+
+```{r eval=FALSE}
+ciudades <- c(rep(c("Lima", "Bogota"),10),
+              rep(c("San Jose","Brasilia"),10))
+
+# Convierte el vector a factor con una función as()
+ciudades <- as.factor(ciudades)
+is.factor(ciudades) # [1] TRUE
+# Crea un factor con factor()
+ciudades <- factor(ciudades)
+is.factor(ciudades) # [1] TRUE
+# Reordenar niveles de un factor
+ciudades2 <- factor(ciudades, labels = c("Bogota"= "B",
+                            "San Jose"="Sj",
+                            "Lima"="L",
+                            "Brasilia"="Bra"))
+
+# Cambiar el nombre de los niveles
+factor(ciudades,levels = c("Lima","Bogota","Brasilia","San Jose"))
+
+```
+
+### Matrices
+
+```{r eval=FALSE}
+# Crear matrices a partir de un vector
+matrix(1:100, ncol = 10, nrow = 10, byrow = FALSE)
+m <- matrix(1:100, ncol = 10, nrow = 10, byrow = TRUE)
+
+# Usando vectores para crear matrices
+matrix(c(vect.l,vect.ch),ncol = 3,nrow = 10)
+# cuando no tienen la misma cantidad de filas se autocompleta
+
+# Crear una matriz vacía
+matrix(data = NA, ncol = 2,nrow = 10)
+# util a la hora de hacer bucles
+```
+
+### Data frames
+
+```{r eval=FALSE}
+# Crear data frames a partir de un vector
+data.frame(numeros=1:10,
+           localidades=paste("Loc",1:5),
+           logic=rep(T,5))
+# Se autocompleta
+
+# data frame a partir de objetos
+data.frame(ciudades,ciudades2)
+m.df <- as.data.frame(m)
+is.data.frame(m.df) # TRUE
+
+# Cambiar nombres a las columnas
+colnames(m.df)<- c("N","L","LOG","V4","V5", "V6" , "V7", "V8","V9", "V10")
+
+# eliminar columnas
+m.df$LOG  <- NULL
+
+# cohercionar hacia tibble
+tib <- as_tibble(m.df)
+is_tibble(tib) #
+
+
+```
+
+```{r eval=FALSE}
+
+# LISTAS
+# Lista de talla, vect.ch, vect.l, sin indicar nombres
+talla <- rep(c("alto","bajo"),10)
+lis <- list(logic,numero)
+mi.lista <- list(numero = 1,
+                 ciudad="valparaiso",
+                 dias = dias.a,
+                 data = m.df,talla,lis)
+
+# con tidyverse
+mi.lista2 <- lst(number= 1,"valparaiso",dias.a,m.df,talla,lis)
+
+# Lista con nombres
+# se puede nombrar en cualquiera de las 2 funciones
+
+
+```
+
+\pagebreak
+
+# **Indexación de Variables**
+
+## Ejercicios E
+
+### Vectores y Factores
+
+```{r eval=FALSE}
+# Indexar la posición 4 del vector talla
+talla[4]
+
+# Indexar la posición 1,5,8 del vector talla
+talla[c(1,5,8)]
+
+# Indexar la posición del 2:10 del vector talla
+talla[2:10]
+
+# Indexar factor
+ciudades[2]
+```
+
+### Matrices, Data frames y Tibbles
+
+```{r eval=FALSE}
+# Cargar una base de datos de trabajo llamada iris
+data("iris")
+
+# Visualizar iris
+view(iris)
+
+# Indexar el elemento de la posición fila 30, columa 4
+iris[30,4]
+
+# Indexar toda la columna 4
+iris[,4]
+
+# Indexar toda la fila 72
+iris[72,]
+
+# Indexar con simbolo de dólar
+iris$Sepal.Length
+# al indexar se convierte en un data frame de una sola fila
+
+# Ver los atributos de una base de datos 2D
+str(iris)
+# pasar de factor a character la columna species
+iris$Species <- as.character(iris$Species) 
+str(iris)
+#regresando a factor
+iris$Species <- as.factor(iris$Species)
+
+# Indexar con nombre de columna 
+  # Y aprendamos a usar apply() y which()
+iris[,-5]
+index <- 5
+iris2 <- iris[,-index]
+
+# --- apply()
+# promedio de columnas
+apply(iris[,-5], 2,mean) %>% round(3) #1 es para filas, 2 para columnas
+
+# --- wich() 
+iris[,"Species"]  
+# usada para saber cual es la posicion de una columna en una tabla
+which(colnames(iris)=="Species") # 5ta posicion
+
+# --- indexar más de una columna usando un vector como index
+iris2 <- iris[,-index]
+
+# Graficar con plot() e indexación con $
+hist(iris$Sepal.Length)
+
+# Indexar con la función with()
+plot(iris$Species,iris$Sepal.Length) # cajas por categorica
+plot(iris$Sepal.Length,iris$Sepal.Width)
+# whit hace mas facil los argumentos para plotear
+with(iris,plot(Petal.Length,Sepal.Width))
+# Otros usos de with()
+summary(iris$Sepal.Length)# resume los estadísticos 
+with(iris, summary(Sepal.Length))
+with(iris,boxplot(Petal.Length~Species))
+with(iris, lm(Petal.Length~Species)) %>% summary()
+```
+
+### Listas
+
+```{r eval=FALSE}
+# Indexar una lista sin nombres
+mi.lista <- list(1,"Valparaiso",dias.a,m.df,talla,lis)
+mi.lst <- lst(1,"Valparaiso",dias.a,m.df,talla,lis)
+
+# Indexar una lista con nombres
+mi.lista[[1]]
+mi.lista[[6]]
+mi.lista[[6]][[2]]
+# Ver los atributos de una lista
+
+
+```
+
+\pagebreak
+
+# **Operadores lógicos**
+
+## Ejercicios F
+
+```{r eval=FALSE}
+# Crear tres condición lógica y guardarlas como a, b y c
+a <- 3>10
+b <- 4<5
+c <- 10 != 10
+# Ejecutemos algunas condiciones lógicas
+a
+b
+a&b # FALSE
+a|b # TRUE
+#mostrando en que celdas se encuentra las palabras versicolor
+## genera data.frames
+iris$Species == "versicolor"
+subset(iris,iris$Species == "setosa") %>% view()
+subset(iris, iris$Species != "setosa") %>% view()
+subset(iris, iris$Petal.Length >= 6) %>% view
+subset(iris, iris$Petal.Length >= 6 & iris$Petal.Width <= 2) %>% View()
+subset(iris, iris$Petal.Length >= 6 | iris$Petal.Length <= 2) %>% View()
+```
+
+\pagebreak
+
+# **Valores Perdidos**
+
+## Ejercicios G
+
+```{r eval=FALSE}
+# Activemos otra base de datos
+data("airquality")
+fix(airquality)
+# Ubicar valores NA en iris y airquality
+# TRUE significa es valor NA, FALSE no es NA
+is.na(airquality) # muestra como TrUE los valores NA de la tabla
+
+# Sumar cuantos valores NA hay en iris y airquality
+# # por columna
+sum(is.na(airquality))
+
+# Sumar cuantos valores NA hay en cada columna de airquality
+colSums(is.na(airquality))
+
+# Ubicar exactamente dónde están los NA en airquality
+which(is.na(airquality), arr.ind = TRUE)
+
+# Identificar las filas que no tiene NA (TRUE) y las 
+# que tiene NA (FALSE) en airquality 
+complete.cases(airquality) #reconoce como false a las filas que
+# contienen na
+
+
+# Elimina las filas que contienen NA
+airquality2 <- na.omit(airquality)
+mean(airquality$Ozone) # [1] NA
+mean(airquality2$Ozone)
+mean(airquality$Ozone, na.rm = T)
+# saber cuantos nas hay en airquality
+colSums(is.na(airquality))
+```
+
+# Importación de Datasets
+```{r eval=FALSE}
+readxl::read_xlsx()
+
+#las hojas no deben tener celdas combinadas, hojas extras, notas o 
+##j caracteres extraños
+```
+

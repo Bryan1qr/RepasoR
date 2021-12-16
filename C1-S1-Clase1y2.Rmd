@@ -1,0 +1,323 @@
+---
+title: "R para ciencias, nivel 1.1"
+Subtitle: 'Programa de Certificación Especializado Data Science Estadística y Análisis de Datos en R'
+Author: "Bryan Antony Quispe Ramos"
+output:
+  pdf_document:
+    number_sections: yes
+    highlight: zenburn
+    toc: yes
+  html_document:
+    theme: cosmo
+  word_document:
+    toc: yes
+editor_options:
+  chunk_output_type: console
+---
+
+\pagebreak
+
+# Antes de empezar
+
+```{r eval=FALSE}
+# PRIMOLIUS
+## instalamos el tema claro creado por el profe para nosotros
+install.packages("rstudioapi")
+install.packages("fs") #Este código es nuevo así que necesitamos instalarlo también
+tema_Primolius <- fs::path_temp("tema_Primolius", ext = "rstheme")
+download.file("https://raw.githubusercontent.com/irwingss/Primolius-Theme/main/Primolius_Color.rstheme",tema_Primolius)
+rstudioapi::addTheme(tema_Primolius, apply = TRUE)
+
+# PRIMOLIUS DARK
+install.packages("rstudioapi")
+install.packages("fs") #ya no es necesario por lo anterior
+tema_Primolius_D <- fs::path_temp("tema_Primolius_dark", ext = "rstheme")
+download.file("https://raw.githubusercontent.com/irwingss/Primolius-Theme/main/Primolius_Dark.rstheme", tema_Primolius_D)
+rstudioapi::addTheme(tema_Primolius_D, apply = TRUE)
+
+# Además en la nueva edición el profe  menciona  el  uso de la 
+# función load
+load(choose.files()) # se agrega un paquete de tipo rda
+install.packages(paquetes)
+
+# knit como pdf
+# para esto se debe ejecutar los siguientes códigos:
+install.packages("tinytex")
+# luego ejecutar lo siguiente
+tinytex::install_prebuild()
+# de no funcionar usar
+tinytex::install_tinytex()
+
+## Combinaciones importantes en el teclado
+# alt + - operador de asignacion
+# alt + 62 simbolo >
+# alt + 60 simbolo <
+# virgulilla alt + 126
+```
+
+
+# **Usa R como una calculadora**
+
+Coloca aquí tus anotaciones...
+
+|              |                                         |             |               |
+|--------------|-----------------------------------------|-------------|---------------|
+| **Operador** | **Operación**                           | **Ejemplo** | **Resultado** |
+| \+           | Suma                                    | 10 + 3      | 13            |
+| \-           | Resta                                   | 10 - 3      | 7             |
+| \*           | Multiplicación                          | 10 \* 3     | 30            |
+| /            | División                                | 10/3        | 3.33333333    |
+| \^           | Potencia                                | 10 \^ 3     | 1000          |
+| %/%          | División entera (parte entera)          | 10 %/% 3    | 3             |
+| %%           | Residuo de dividir un numero entre otro | 10 %% 3     | 1             |
+
+## Ejercicios A
+
+Realiza algunas operaciones aritméticas en el siguiente **Code Chunk**.
+
+```{r eval=FALSE}
+# Realiza la suma de tu año de nacimiento y 2021
+# VECTOR
+fecha1 <- 1997+2021
+# Realiza la resta de 2021 y tu año de nacimiento
+fecha2 <- 2021-1997
+
+# Realiza la multiplicación de las dos respuestas anteriores
+multiplicacion1 <- fecha1*fecha2
+
+# Realiza una división de las dos primeras respuestas
+division1 <- fecha1/fecha2
+
+# Realizar la misma división mostrando la parte entera del resultado
+entera <- fecha1 %/% fecha2
+
+# Realiza la misma división mostranso el residuo de la misma
+residuo <- fecha1%%fecha2
+
+```
+
+\pagebreak
+
+Es posible realizar operaciones matemáticas con R.
+
+|              |                            |             |               |
+|--------------|----------------------------|-------------|---------------|
+| **Operador** | **Operación**              | **Ejemplo** | **Resultado** |
+| exp(n)       | Eleva e a la n             | exp(3)      | 20.08554      |
+| sqrt(n)      | Raíz cuadrada de n         | sqrt(3)     | 1.732051      |
+| log(n)       | Logaritmo natural de n     | log(3)      | 1.098612      |
+| log(n, b)    | Logaritmo de n en base b   | log(3, 10)  | 0.4771213     |
+| log10(n)     | Logaritmo de n en base 10  | log10(3)    | 0.4771213     |
+| log1p(n)     | Logaritmo natural de n + 1 | log1p(2)    | 1.098612      |
+| log2(n)      | Logaritmo en base 2        | log2()      | 3.321928      |
+| pi           | Número pi                  | Pi          | 3.141593      |
+| abs(n)       | Convierte n en absoluto    | abs(-10.2)  | 10.2          |
+
+## Ejercicios B
+
+Realiza algunas operaciones matemáticas en el siguiente **Code Chunk**.
+
+```{r eval=FALSE}
+# Realiza la potencia de e a la -1.98
+potencia <- exp(-1.98)
+
+# Realiza una raíz cuadrada 48
+sqrt(48)
+
+# Realiza el logaritmo natural de 120
+log(120)
+
+# Realiza una logaritmo de 10 en base 5
+log(10,5)
+
+# Realiza el logaritmo de 100 en base 10
+log(100,10)
+log10(100)
+
+# Realiza el logaritmo de 100 en base 2
+log(100,2)
+
+# Realiza el valor absoluto del pi menos 13
+abs(pi-13)
+
+# Truco para logaritmizar elementos con 0s
+# al valor base le suma1 y reción le saca el logaritmo natural
+log1p(0)
+
+```
+
+\pagebreak
+
+# **Variables**
+
+Coloca aquí tus anotaciones...
+
+**Recomendaciones para los nombres de las variables**
+
+-   Usa nombres cortos y que representen el significado de la variable (bosque15, capturas, monito1, mensual, etc).
+
+-   Evita usar nombres genéricos, otras personas o tu mismo podrían no entender al leer tu código (var1, var2, x, y, z, etc).
+
+-   R diferencia entre mayúsculas y minúsculas (no es igual Datos y datos).
+
+-   Usa guión bajo "\_" o punto "." para separar nombres complejos (bosque_S1, tramp.jul, monit.diurno, prec_anual, etc).
+
+## Ejercicios C
+
+```{r eval=FALSE}
+# Crea una variable llamada número que contenga la suma de la hora 
+# y minutos de este momento, usando <-
+numero <- 18+18
+
+# Crea una variable llamada cumple sumando el año, mes y dia 
+# de tu cumpleaños, usando <-
+cumple <- 2021+12+8
+
+# Ahora suma 1029 y 2300 pero usando -> y crea la variable suma1
+1029+2300 -> suma1
+
+# Prueba usar = en lugar de el operador de asignación
+1029+2300 = suma1 # error
+
+
+```
+
+Crear un nuevo **code chunk usando:** `control+alt+i`..... o ...... `command+alt+i`
+
+Si sale xd
+
+**¿Dónde aparecieron guardadas las variables que creaste?**
+
+Rpta. En el panel de ambiente (**ENVIRONMENT**)
+
+\pagebreak
+
+# **FUNCIONES**
+
+Coloca aquí tus anotaciones...
+
+Las FUNCIONES siempre tendrán un nombre seguido de paréntesis. Dentro de los paréntesis podrás colocar argumentos para especificar acciones, atributos, omisiones, entre otras cosas específicas de cada función. Si quieres usar una función debes escribir su nombre seguido de paréntesis; pero si solo quieres ver el código que contiene una función, solo ejecuta su nombre sin paréntesis.
+
+Identifica qué código contiene la función `var`
+
+```{r eval=FALSE}
+?var # var(x, y = NULL, na.rm = FALSE, use)
+var
+# function (x, y = NULL, na.rm = FALSE, use) 
+# {
+#    if (missing(use)) 
+#        use <- if (na.rm) 
+#            "na.or.complete"
+#         else "everything"
+#     na.method <- pmatch(use, c("all.obs", "complete.obs", 
+#         "pairwise.complete.obs", "everything", "na.or.complete"))
+#     if (is.na(na.method)) 
+#         stop("invalid 'use' argument")
+#     if (is.data.frame(x)) 
+#         x <- as.matrix(x)
+#     else stopifnot(is.atomic(x))
+#     if (is.data.frame(y)) 
+#         y <- as.matrix(y)
+#     else stopifnot(is.atomic(y))
+#     .Call(C_cov, x, y, na.method, FALSE)
+# }
+# <bytecode: 0x000001db115d79e8>
+# <environment: namespace:stats>
+```
+
+Identifica qué código contiene la función `hist`, llamada función nativa.
+
+```{r, eval=F}
+hist
+#  function (x, ...) 
+# UseMethod("hist")
+# <bytecode: 0x000001db0ad4d780>
+# <environment: namespace:graphics>
+```
+
+Los argumentos de una función puede ir nombrados o no, pero si eres principiante en R es mejor tratar casi siempre de usar los nombres de los argumentos, de esa manera entenderás mejor cada porción de texto que colocas en R.
+
+```{r fig.width=10, fig.height=5}
+# Indicando el nombre del argumento x con x = 
+datasets::airquality
+data("airquality")
+hist(x=airquality$Temp)
+
+```
+
+```{r fig.width=10, fig.height=5}
+# Sin indicar el argumento x =
+hist(airquality$Temp)
+
+```
+
+Control+alt+i
+
+```{r eval=FALSE}
+# COMO CREAR UNA FUNCION EN R
+
+
+cubo <- function(x){
+  x^(1/3)
+}
+
+funcion.trabajo <- function(numero, divisor){
+  primerpaso <- numero^(1/3)
+  primerpaso/divisor
+}
+
+
+funcion.trabajo2 <- function(numero, divisor=100){
+  primerpaso <- numero^(1/3)
+  primerpaso/divisor
+}
+
+
+# USEMOS LAS FUNCIONES CREADAS
+cubo(10)
+funcion.trabajo2(10, 100)
+funcion.trabajo2(divisor = 100, numero = 10)
+funcion.trabajo(10,2)
+```
+
+\pagebreak
+
+# **Librerías**
+
+Coloca aquí tus anotaciones...
+
+Instala con código el paquete (o librería) tidyverse. Quítale el hashtag y ejecuta el código. Una vez termine de instalar, vuelve a colocar el hashtag para que no tengas problemas al convertir tu documento a PDF.
+
+```{r eval=FALSE}
+
+install.packages("devtools")
+
+# Instalar la librería "devtools"
+# Devtools sirve para instalar paquetes de repositorios NO OFICIALES
+# GITHUB, BIOCONDUCTOR
+
+
+```
+
+# **Búsqueda de Ayuda en RStudio**
+
+Coloca aquí tus anotaciones...
+
+Busquemos ayuda sobre la función var.
+
+```{r eval=FALSE}
+# Usando la función help()
+help(var)
+
+# Usando el signo de interroganción simple
+?var
+
+# Usando doble signo de interrogación
+??var
+```
+
+## Buenos buscadores
+
+-   Rdocumentation
+
+-   Rseek
