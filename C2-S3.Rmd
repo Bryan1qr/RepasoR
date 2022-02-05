@@ -1,0 +1,1015 @@
+---
+title: "Data Science"
+Author: "Byan Quispe"
+output: bookdown::epub_book
+editor_options:
+  chunk_output_type: console
+---
+
+Instalar librerías nuevas
+
+```{r eval=FALSE}
+install.packages("polycor")
+install.packages("PMCMR")
+install.packages("PMCMRplus")
+install.packages("emmeans")
+install.packages("pwr2")
+install.packages("lattice")
+install.packages("datarium")
+install.packages("car")
+install.packages("effsize")
+install.packages("broomExtra")
+install.packages("MVN")
+install.packages("effectsize")
+install.packages("kableExtra")
+```
+
+Librerías a usar
+
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+library(nortest)
+library(rstatix)
+library(polycor)
+library(broom)
+library(lattice)
+library(PMCMR)
+library(datarium)
+library(effsize)
+library(car)
+library(ggpubr)
+library(emmeans)
+library(MVN)
+library(effectsize)
+```
+
+# **1. ANOVA (Paramétrico)**
+
+## **1.1 ANOVA de una vía**
+
+Carga la base de datos `ToothGrowth` de la librería `tidyverse`.
+
+```{r eval=FALSE}
+# Carga la base de datos ToothGrowth y asignar la base
+# de datos con el nombre dat
+data("ToothGrowth")
+datos <- ToothGrowth
+
+# Comprobar la estructura de dat
+str(datos)
+
+# Todas las variables explicativas deben ser transformadas
+# a factores ordinales o nominales
+datos$dose <- factor(datos$dose, 
+                     labels=c("0.5"="D0.5",
+                              "1"="D1",
+                              "2"="D2"))
+
+# Cambiemos los valores de dat para entender mejor la información
+datos$supp <- factor(datos$supp, labels=c("OJ"="JN", 
+                                          "VC"="AA"))
+str(datos)
+```
+
+### **Asunciones del ANOVA**
+
+```{r eval=FALSE}
+# A1 --------------------------------------------------------
+#    La variable respuesta debe ser continua.
+datos$len # si es
+
+# A2 --------------------------------------------------------
+#    Los residuales son independientes. 
+# esto es teórico o específico de observación
+
+# A3 --------------------------------------------------------
+#   La variable respuesta no debe tener outliers (por grupos).
+
+# Verificar presencia de outliers
+identify_outliers(datos, len) # no hay
+
+# por dosis si hay 1
+outliers <- datos %>% group_by(dose) %>% identify_outliers(len)
+ggboxplot(x="dose", y="len", data=datos)
+
+# eliminando con anti_join
+datos <- anti_join(datos, outliers)
+ggboxplot(x="dose", y="len", data=datos)
+
+# Gráfico final
+# https://rpkgs.datanovia.com/ggpubr/reference/ggboxplot.html
+library(ggpubr)
+ggboxplot(x="dose", y="len", data=datos,
+          add="jitter", fill="dose",
+          palette=c("#9f60fc", "#19c6ff", "#FC4E07"))+
+  stat_boxplot(geom ='errorbar', width = 0.2)+
+  labs(x="Dosis", y="Longitud (cm)", fill="Dosis")+
+  theme(legend.position="none")
+
+# Hacer el modelo lineal
+mod <- lm(len~dose,data = datos)
+# vemos la cantidad de obs por dosis
+table(datos$dose)
+
+# A4 -------------------------------------------------------
+#   Los residuales tienen distribución normal. 
+datos.aug <- augment(mod)
+head(datos.aug)
+# con shapiro
+datos.aug %>% group_by(dose) %>% 
+  shapiro_test(.resid)
+
+# usando ad test
+ad.test.p <- function(x){
+  test <- ad.test(x)
+  test$p.value
+}
+
+# todos son normales
+datos.aug %>% group_by(dose) %>% 
+  summarise(pvalor=ad.test.p(.resid))
+
+datos.aug %>% select(.resid,dose) %>% 
+  group_by(Dosis=dose) %>% 
+  summarise_if(is.numeric,tibble::lst(pvalor=ad.test.p))
+
+shap <- function(x){
+  stat <- shapiro_test(x)
+  stat$p.value
+  }
+  
+datos.aug %>%
+  group_by(dose) %>%  
+  select(.resid) %>% 
+  summarise_all(tibble::lst(ADtest=ad.test.p,Shapiro=shap))
+# A5 -------------------------------------------------------
+#   Los residuales son homocedásticos (igual varianza) 
+#      Test de Bartlett
+#      H0: las varianzas de los grupos son iguales
+#      Ha: las varianzas de los grupos son diferentes
+bartlett.test(.resid~dose,data=datos.aug) # p-value = 0.7416
+```
+
+### **Ejecutando la prueba de ANOVA Balanceado**
+
+Hipótesis de la prueba:
+
+-   H0: no existen diferencias significativas entre los promedios de ninguno de los grupos evaluados.
+
+-   Ha: existen diferencias significativas entre los promedios de al menos un par de grupos.
+
+Con el siguiente código podrán realizar cualquier **ANOVA**, ya sea de **una vía, dos vías balanceados , tres vías balanceados, unifactorial o factorial.**
+
+```{r eval=FALSE}
+# Dos formas de hacer un anova de una vía
+# Modo 1: función anova(lm())
+anova(lm(len~dose,data=datos))
+lm(len~dose,data=datos)|> anova()
+lm(len~dose,data=datos) %>%  anova()
+
+# Modo 2: función aov()
+aov(len~dose,data=datos) %>% summary()
+aov(len~dose,data=datos) |> summary()
+
+# ambos modos dan el mismo analis de varianza
+```
+
+### **Diferentes tipos de ANOVA con las funciones aprendidas**
+
+```{r eval=FALSE}
+# ANOVA Balanceado Unifactorial de una vía
+# probando la robustez con data con outlier
+aov(len~dose,data = ToothGrowth) %>% summary() # p=1.23e-14
+  ### Probando la robustez con el desbalanceado
+  aov(len~dose,data = datos) %>% summary() # p=<2e-16
+
+# ANOVA Balanceado Unifactorial de dos vías
+# ambas vias son significativas
+aov(len~dose+supp,data=ToothGrowth) %>% summary()
+
+# ANOVA Balanceado Factorial de dos vías
+# tanto las variables y la interacción son significativas
+aov(len~dose*supp,data=ToothGrowth) %>% summary()
+```
+
+### **Gráficas de promedios (unifactorial y factorial)**
+
+```{r eval=FALSE}
+# Gráfico de medias por grupos unifactorial de una via
+# es de rstatix
+
+# Primero generamos una tabla  de subtitulos estadisticos
+ANOVA1 <- anova_test(len~dose,data = ToothGrowth)
+# extratendo las medias marginales del anova
+comparaciones1 <- ToothGrowth %>% 
+  emmeans_test(len~dose) %>% 
+  add_xy_position(x="dose",fun = "mean_se",step.increase = 0.22)
+
+ggline(x="dose", y="len", data=datos,add=c("boxplot","jitter"),
+       plot_type = "l",color="dose")+ 
+  labs(subtitle = get_test_label(ANOVA1,detailed=TRUE))+
+  stat_pvalue_manual(comparaciones1,color = "darkcyan")+
+  theme(legend.position = "none")+xlab("Dosis")+
+  ylab("Longitud del diente")
+```
+
+![Grafico ANOVA unifactorial con pos hoc test de emmeans](images/rstudio_slyzANGa14.png)
+
+```{r eval=FALSE}
+# Gráfico de medias por grupos factorial (con interacción) de dos vias
+ANOVA2 <- anova_test(len~dose*supp,data=datos)
+
+ggline(x="dose", y="len", data=datos,add=c("mean_se","jitter"),
+       plot_type = "b", color = "supp")+ 
+  labs(subtitle = get_test_label(ANOVA2,detailed=TRUE))+
+  theme(legend.position = "bottom")# left,right,top,bottom
+
+# Gráfico de medias por grupos factorial SENCILLO
+modelo.anova <- lm(len~dose*supp,data = datos)
+
+library(sjPlot)
+plot_model(modelo.anova,type="int")
+```
+
+![Gráfico de interacción con ggline (mejor que sjplot)](images/rstudio_PtBW5aCtoF.png)
+
+## **Test Post Hoc**
+
+### **Prueba de Tukey**
+
+```{r eval=FALSE}
+# Primero guarda el modelo 
+mod_anova <- aov(len~dose,data = datos)
+
+# Luego, usa la función para la prueba de Tukey
+# de stats
+tuk <- TukeyHSD(mod_anova) #d2<d1<d0.5 
+tuk2 <- as.data.frame(tuk$dose)
+plot(TukeyHSD(mod_anova))
+# de rstatiz
+tukey_hsd(mod_anova)
+# Exportar resultados a excel
+# con pipes rstatix
+mod_anova %>% tukey_hsd() %>% 
+  openxlsx::write.xlsx("Tukey.xlsx")
+# simple con pipes
+openxlsx::write.xlsx(tuk2,"tuk.xlsx",overwrite = T)
+
+# ¿Dónde se guardó?
+"C:/Users/Bryan/Documents/DataScience/C1-Semana1/RepasoR2/
+RepasoR2"
+
+# Tukey de ANOVA Balanceado Unifactorial de una vía
+aov(len~dose,data = datos) %>% TukeyHSD()
+
+# Tukey de ANOVA Balanceado Unifactorial de dos vías
+aov(len~dose+supp,data=datos) %>% tukey_hsd()
+# parte en 2 tablas, es mejor rstatix a menos que se
+# requiera más orden
+aov(len~dose+supp,data=datos) %>% TukeyHSD()
+# Tukey de ANOVA Balanceado Factorial de dos vías
+aov(len~dose*supp,data=datos) %>% tukey_hsd()
+aov(len~dose*supp,data=datos) %>% TukeyHSD()
+
+# Graficamos Tukey de una via
+ANOVAt <- anova_test(len~dose,data=ToothGrowth)
+comparacion2 <- ToothGrowth %>% 
+    tukey_hsd(len~dose) %>% 
+    add_xy_position(x="dose",fun = "mean_se",step.increase = 0.22)
+
+ggline(x="dose", y="len", data=ToothGrowth,add=c("boxplot",
+                                           "jitter"),
+       plot_type = "l",color="dose")+ 
+  labs(subtitle = get_test_label(ANOVAt,detailed=TRUE))+
+  stat_pvalue_manual(comparacion2,color = "darkcyan")+
+  theme(legend.position = "none")+xlab("Dosis")+
+  ylab("Longitud del diente")
+```
+
+### **Prueba de Scheffe**
+
+```{r eval=FALSE}
+library(DescTools)
+mod_anova <- aov(len~dose,data = datos)
+sheffe <-ScheffeTest(mod_anova)
+sheffe$dose %>% as_tibble() %>% 
+  openxlsx::write.xlsx("schefe.xlsx")
+```
+
+### **Prueba de Duncan**
+
+```{r eval=FALSE}
+library(PMCMRplus)
+du <- duncanTest(mod_anova)
+du$p.value
+```
+
+# **2. Anova (No Paramétrico):** Test de Kruskal-Wallis
+
+Carga la base de datos `ChickWeight`. Estas son mediciones de pesos (columna `weight`) de pollitos que fueron sometidos a 4 dietas diferentes (columna `Diet`).
+
+```{r eval=FALSE}
+data("ChickWeight")
+pesos <- ChickWeight
+head(ChickWeight)
+# Normalidad de los residuales
+mod_pesos <- lm(weight~Diet,data=pesos)
+mod_pesos2 <- augment(mod_pesos)
+mod_pesos2 %>% 
+  group_by(Diet) %>% 
+  summarise(residuales=ad.test.p(.resid))
+# no hay normalidad
+```
+
+### **Asunciones de Kruskal-Wallis**
+
+```{r eval=FALSE}
+# A4 -------------------------------------------------------
+#   Observar la distribución de las funciones de densidad de la
+#   variable respuesta para cada grupo del factor  los datos
+# deben tener una sola distribución
+library(lattice)
+densityplot(~weight,groups=Diet,data = pesos)
+```
+
+![Datos sesgados a la izquierda](images/rstudio_ffRRuJNdag.png)
+
+### Ejecutar la prueba de Kruskal-Wallis
+
+```{r}
+# Realizar el test de Kruskal Wallis
+kruskal.test(weight~Diet,data=pesos) # p-value = 2.012e-05
+# Realizar el Post hoc, test de dunn comparaciones pareadas
+# con corrección de holm y bonferroni, metodos de ajustes
+# por defecto ofrece holm
+dunn_test(weight~Diet,data = pesos
+          ,p.adjust.method = "holm")
+# con corrección de bonferroni
+dunn_test(weight~Diet,data = pesos
+          ,p.adjust.method = "bonferroni")
+```
+
+# **3. ANOVAS No Balanceados**
+
+## 3.1 Anova Tipo II y Tipo III
+
+Antes de realizar estos ANOVAs es necesario revisar los supuestos teóricos previamente descritos. Sucede que estos tipos de anova tienen una diferente manera de calcular sus sumas de cuadrados.
+
+> -   Tipo 2: Recomendable cuando **no existe** interacción significativa entre los factores del modelo. Esto se traduce en que el tipo 2 es más robusto cuando no hay interacción significativa.
+>
+> -   Tipo 3: Si la interacción **es significativa**, entonces es mejor el tipo 3.
+
+```{r eval=FALSE}
+# Carga la base de datos heartattack.xlsx
+ac <- openxlsx::read.xlsx("heartattack.xlsx")
+ac <- openxlsx::read.xlsx(file.choose())
+str(ac)
+# las conversiones a factor no son tan necesarias en funciones
+# anova y de modelo lineal, pero es una buena práctica
+ac2 <- ac %>% mutate_if(is.character,as.factor)
+# Verifiquemos si los factores son desbalanceadas o no
+# resultan si ser desbalanceados
+table(ac2$gender)
+table(ac2$drug)
+table(ac2$risk)
+
+# Revisar si hay interacción significativa
+anovax <- aov(cholesterol~gender*drug,data=ac2)
+summary(anovax)
+
+# Crea el modelo lineal final 
+modFinal <- aov(cholesterol~gender+drug,data = ac2)
+
+# Ejecuta el ANOVA Final, 
+# decidiendo el tipo que corresponda (II o III)
+#escogemos 2 porque es el adecuado sin interacciones
+# ñsignificativas
+library(car)
+Anova(modFinal,type = "II")
+
+# PostHoc de ANOVAS no Balanceados (interpretar los significativos)
+aov(cholesterol~gender+drug,data = ac2) %>% 
+  TukeyHSD()
+
+library(sjPlot)
+plot_model(modFinal,type="eff")
+
+ggline(x="gender", y="cholesterol", data=ac2,
+       add=c("boxplot","jitter"),
+       plot_type = "l",color="gender")
+
+ggline(x="drug", y="cholesterol", data=ac2,
+       add=c("boxplot","jitter"),
+       plot_type = "p",color="drug")
+
+ac2 %>% group_by(drug) %>% select(cholesterol) %>% 
+  summarise(prom=median(cholesterol))
+```
+
+# **4. ANCOVA**
+
+Carga el excel `contaminacion.xlsx`. Esta base de datos nos servirá para identificar cuál es el protocolo que nos genera una menor cantidad de contaminación, teniendo en cuenta la covariable tiempo de actividad diario.
+
+### **Asunciones teóricas del ANCOVA**
+
+```{r eval=FALSE}
+# Carga el excel contaminacion.xlsx
+contaminacion <- openxlsx::read.xlsx("contaminacion.xlsx")
+contaminacion <- openxlsx::read.xlsx(file.choose())
+contaminacion <- contaminacion %>% 
+  mutate_if(is.character,as.factor)
+
+# A2 ---------------------------------------------------------------
+#   Verificar presencia de outliers.
+#   no hay outliers
+ggboxplot(x="trat",y="contam",data = contaminacion)
+contaminacion %>% group_by(trat) %>% 
+  identify_outliers(contam)
+
+# A3 ---------------------------------------------------------------
+#   Linealidad entre la covariable y la variable respuesta 
+# (Y).
+ggscatter(x="tiempo",y="contam",color = "trat",
+          data = contaminacion,size = 3,add = "reg.line")+
+  facet_wrap(~trat)
+
+# A4 ---------------------------------------------------------------
+#   Independencia de la covariable y la variable explicativa (X).
+#     Verificar que al enfrentar en un ANOVA la covariable vs
+#     la variable respuesta X, el pvalor sea no significativo (p>0.05)
+# vemos que hay independencia 
+aov(tiempo~trat,data = contaminacion) %>% summary()
+
+# A5 ---------------------------------------------------------------
+#   Homogeneidad las pendientes de la regresión por grupo
+#     No debe existir interacción entre covariable y var. explicativa (X).
+ggscatter(x="tiempo",y="contam",color = "trat",
+          data = contaminacion,size = 3,add = "reg.line")
+
+  # A6 ---------------------------------------------------------------
+#   Los residuales del modelo ANCOVA tienen distribución normal. Algo curioso es que los residuales de un lm y 
+# un anova tienen un p de normalidad identico
+ancova_mod <- aov(contam~tiempo+trat,data=contaminacion)
+ad.test(resid(ancova_mod)) # p-value = 0.5076
+
+# A7 ---------------------------------------------------------------
+#   Homocedasticidad (homogeneidad de las varianzas) de los residuales.
+# resulta que si es homogeneo
+ancova_mod <- lm(contam~tiempo+trat,data=contaminacion)
+au.lm.test <- augment(ancova_mod)
+bartlett.test(.resid~trat,data=au.lm.test) # p-value = 0.1751
+```
+
+### Ejecutar el ANCOVA
+
+```{r eval=FALSE}
+# Si todo está conforme, ejecuta el ANCOVA
+anova(ancova_mod)
+```
+
+### Post Hoc para el ANCOVA
+
+Post Hoc para el ANCOVA se realiza calculando los promedios marginales, que es la forman de nombrar los promedios de cada grupo.
+
+```{r eval=FALSE}
+# Calculamos los promedios marginales estimados usando la funcion emmeans()
+library(emmeans)
+em <- emmeans(ancova_mod,specs = "trat")
+em
+
+# Visualizamos los contrastes pareados para identificar 
+# la significancia de las comparaciones de promedios de grupo.
+# Estimate es el valor de la diferencia entre los tratamientos en cuestión.
+pairs(em)
+```
+
+# **5. Análisis de Correlación**
+
+Carga el excel `correlacion.xlsx` y asígnale el nombre `corr`.
+
+```{r eval=FALSE}
+# Carga el excel correlacion.xlsx y asígnale el nombre corr
+corr <- openxlsx::read.xlsx("correlacion.xlsx")
+corr <- openxlsx::read.xlsx(file.choose())
+```
+
+## 5.1 Pearson
+
+> -   A1: Ambas variables deben haber sido tomadas como pares relacionados.
+>
+> -   A2: Ambos conjuntos enfrentados deben ser continuos.
+>
+> -   A3: Debe haber una relación lineal entre las variables.
+>
+> -   A4: No deben existir outliers en los conjuntos de datos
+>
+> -   A5: Ambos conjuntos de datos deben seguir la distribución normal bivariada.
+
+Probemos con dos ejemplos de correlaciones: `biomass~height` y `height~DBH`.
+
+```{r eval=FALSE}
+view(corr)
+# A3 ------------------------------------------------------------------- 
+#   Verificar relación lineal de las variables
+ggscatter(x="biomass",y="height",data=corr)
+
+# A4 ------------------------------------------------------------------- 
+#   Verificar presencia de outliers
+# no hay outliers
+ggboxplot(y=c("biomass","height"),data=corr)
+
+# A5 ------------------------------------------------------------------- 
+#   Verificar distribución normal univariada
+library(nortest)
+ad.test(corr$biomass) # normal p-value = 0.5125
+ad.test(corr$height) # normal p-value = 0.9539
+
+#   Verificar distribución normal bivariada: Test de Mardia
+library(MVN)
+datos_corr<- corr %>% select(biomass,height) 
+datos.bnd <- mvn(datos_corr,mvnTest = "royston",
+                 univariateTest = "AD")
+datos.bnd <- mvn(datos_corr, mvnTest = "mardia",
+                 univariateTest="SW") # si hay normalidad multivariante
+
+#  ---------------------------------------------------------------------
+
+# EJECUTAR EL TEST
+# Realizar la correlación
+cor.test(corr$biomass,corr$height,method = "pearson")
+cor.test(corr$height,corr$biomass,method = "pearson")
+# p-value = 5.611e-12; corr = 0.6673333
+```
+
+## 5.2 Spearman/Kendall
+
+Usada cuando no se cumple con las asunciones de pearson. Usemos el ejemplo que no se pudo ejecutar en la sección de la correlación de Pearson.
+
+```{r eval=FALSE}
+# A2 ------------------------------------------------------------------- 
+#   Verificar que no hay distribución normal bivariada: Test de Mardia
+datos.corr2 <- corr %>% select(DBH,height)
+datos.bnd2 <- mvn(datos.corr2,mvnTest="royston") #no hay norm multi
+
+# A3 ------------------------------------------------------------------- 
+#   Verificar relación monotónica (i.e., en un solo sentido)
+ggscatter(x="DBH",y="height",data = datos.corr2)
+#  ---------------------------------------------------------------------
+
+# EJECUTAR EL TEST
+# Correlación de Spearman
+cor.test(corr$DBH,corr$height,method = "spearman")
+# rho=0.8804918
+
+# Correlación de Kendall
+cor.test(corr$DBH,corr$height,method = "kendall")
+# tau= 0.7040471
+```
+
+## 5.3 Punto Biserial
+
+Esta es una extensión de la correlación de Pearson, por ello se usa la misma función revisada en la sección 6.1. Contrastaremos la variable `LDL` en mg/dL vs el estatus dicotómico de `obesidad`.
+
+```{r eval=FALSE}
+# A2 ------------------------------------------------------------------- 
+#   Verifica la presencia de outliers en la variable cuantitativa 
+view(corr)
+corr %>% identify_outliers(LDL) # <0 rows> (or 0-length row.names)
+#  ---------------------------------------------------------------------
+
+# Visualiza la relación
+ggscatter(x="LDL",y="obesidad",data = corr)
+
+# Realiza la correlación Punto Biserial (LDL vs obesidad)
+cor.test(corr$LDL,corr$obesidad,method = "pearson")#cor=0.6448317
+```
+
+**La correlación es alta positiva (rho=0.6448317):**
+
+El pertenecer a la categoría 0 (no obeso) de la variable categórica guarda una alta correlación con bajos niveles de LDL (colesterol malo). Mientras que los que pertenecen a la categoría 1 (obeso) guardan una alta correlación con niveles altos de LDL (rho=0.65, p-value \<0.001).
+
+## 5.4 Biserial
+
+Contrastaremos la variable LDL en mg/dL vs la versión dicotomizada de la variable presión arterial. Aquí ya no testeamos la presencia de outliers en la variable cuantitativa porque ya lo hicimos en la sección anterior. No obstante, recuerda siempre revisar este supuesto teórico.
+
+```{r eval=FALSE}
+# A2 ------------------------------------------------------------------- 
+#   Verifica la presencia de outliers en la variable cuantitativa 
+corr %>% identify_outliers(LDL) #<0 rows> (or 0-length row.names)
+
+#  ---------------------------------------------------------------------
+
+# Realiza la correlación Biserial
+library(polycor)
+polyserial(corr$LDL,corr$presDico) # -0.9141895
+
+# Visualiza la relación
+ggscatter(x="LDL",y="presDicoDummy",data = corr, add = "reg.line")
+# no se debe poner una linea de regresión, solo para entender!
+```
+
+![Gráfico Biserial de presión arterial dicotomizada vs colesterol malo](images/rstudio_3Vh1BAv6cR.png)
+
+### Ejecutar la prueba de Kruskal-Wallis
+
+```{r}
+# Realizar el test de Kruskal Wallis
+kruskal.test(weight~Diet,data=pesos) # p-value = 2.012e-05
+# Realizar el Post hoc, test de dunn comparaciones pareadas
+# con corrección de holm y bonferroni, metodos de ajustes
+# por defecto ofrece holm
+dunn_test(weight~Diet,data = pesos
+          ,p.adjust.method = "holm")
+# con corrección de bonferroni
+dunn_test(weight~Diet,data = pesos
+          ,p.adjust.method = "bonferroni")
+```
+
+# **3. ANOVAS No Balanceados**
+
+## 3.1 Anova Tipo II y Tipo III
+
+Antes de realizar estos ANOVAs es necesario revisar los supuestos teóricos previamente descritos. Sucede que estos tipos de anova tienen una diferente manera de calcular sus sumas de cuadrados.
+
+> -   Tipo 2: Recomendable cuando **no existe** interacción significativa entre los factores del modelo. Esto se traduce en que el tipo 2 es más robusto cuando no hay interacción significativa.
+>
+> -   Tipo 3: Si la interacción **es significativa**, entonces es mejor el tipo 3.
+
+```{r eval=FALSE}
+# Carga la base de datos heartattack.xlsx
+ac <- openxlsx::read.xlsx("heartattack.xlsx")
+ac <- openxlsx::read.xlsx(file.choose())
+str(ac)
+# las conversiones a factor no son tan necesarias en funciones
+# anova y de modelo lineal, pero es una buena práctica
+ac2 <- ac %>% mutate_if(is.character,as.factor)
+# Verifiquemos si los factores son desbalanceadas o no
+# resultan si ser desbalanceados
+table(ac2$gender)
+table(ac2$drug)
+table(ac2$risk)
+
+# Revisar si hay interacción significativa
+anovax <- aov(cholesterol~gender*drug,data=ac2)
+summary(anovax)
+
+# Crea el modelo lineal final 
+modFinal <- aov(cholesterol~gender+drug,data = ac2)
+
+# Ejecuta el ANOVA Final, 
+# decidiendo el tipo que corresponda (II o III)
+#escogemos 2 porque es el adecuado sin interacciones
+# ñsignificativas
+library(car)
+Anova(modFinal,type = "II")
+
+# PostHoc de ANOVAS no Balanceados (interpretar los significativos)
+aov(cholesterol~gender+drug,data = ac2) %>% 
+  TukeyHSD()
+
+library(sjPlot)
+plot_model(modFinal,type="eff")
+
+ggline(x="gender", y="cholesterol", data=ac2,
+       add=c("boxplot","jitter"),
+       plot_type = "l",color="gender")
+
+ggline(x="drug", y="cholesterol", data=ac2,
+       add=c("boxplot","jitter"),
+       plot_type = "p",color="drug")
+
+ac2 %>% group_by(drug) %>% select(cholesterol) %>% 
+  summarise(prom=median(cholesterol))
+```
+
+# **4. ANCOVA**
+
+Carga el excel `contaminacion.xlsx`. Esta base de datos nos servirá para identificar cuál es el protocolo que nos genera una menor cantidad de contaminación, teniendo en cuenta la covariable tiempo de actividad diario.
+
+### **Asunciones teóricas del ANCOVA**
+
+```{r eval=FALSE}
+# Carga el excel contaminacion.xlsx
+contaminacion <- openxlsx::read.xlsx("contaminacion.xlsx")
+contaminacion <- openxlsx::read.xlsx(file.choose())
+contaminacion <- contaminacion %>% 
+  mutate_if(is.character,as.factor)
+
+# A2 ---------------------------------------------------------------
+#   Verificar presencia de outliers.
+#   no hay outliers
+ggboxplot(x="trat",y="contam",data = contaminacion)
+contaminacion %>% group_by(trat) %>% 
+  identify_outliers(contam)
+
+# A3 ---------------------------------------------------------------
+#   Linealidad entre la covariable y la variable respuesta 
+# (Y).
+ggscatter(x="tiempo",y="contam",color = "trat",
+          data = contaminacion,size = 3,add = "reg.line")+
+  facet_wrap(~trat)
+
+# A4 ---------------------------------------------------------------
+#   Independencia de la covariable y la variable explicativa (X).
+#     Verificar que al enfrentar en un ANOVA la covariable vs
+#     la variable respuesta X, el pvalor sea no significativo (p>0.05)
+# vemos que hay independencia 
+aov(tiempo~trat,data = contaminacion) %>% summary()
+
+# A5 ---------------------------------------------------------------
+#   Homogeneidad las pendientes de la regresión por grupo
+#     No debe existir interacción entre covariable y var. explicativa (X).
+ggscatter(x="tiempo",y="contam",color = "trat",
+          data = contaminacion,size = 3,add = "reg.line")
+
+  # A6 ---------------------------------------------------------------
+#   Los residuales del modelo ANCOVA tienen distribución normal. Algo curioso es que los residuales de un lm y 
+# un anova tienen un p de normalidad identico
+ancova_mod <- aov(contam~tiempo+trat,data=contaminacion)
+ad.test(resid(ancova_mod)) # p-value = 0.5076
+
+# A7 ---------------------------------------------------------------
+#   Homocedasticidad (homogeneidad de las varianzas) de los residuales.
+# resulta que si es homogeneo
+ancova_mod <- lm(contam~tiempo+trat,data=contaminacion)
+au.lm.test <- augment(ancova_mod)
+bartlett.test(.resid~trat,data=au.lm.test) # p-value = 0.1751
+```
+
+### Ejecutar el ANCOVA
+
+```{r eval=FALSE}
+# Si todo está conforme, ejecuta el ANCOVA
+anova(ancova_mod)
+```
+
+### Post Hoc para el ANCOVA
+
+Post Hoc para el ANCOVA se realiza calculando los promedios marginales, que es la forman de nombrar los promedios de cada grupo.
+
+```{r eval=FALSE}
+# Calculamos los promedios marginales estimados usando la funcion emmeans()
+library(emmeans)
+em <- emmeans(ancova_mod,specs = "trat")
+em
+
+# Visualizamos los contrastes pareados para identificar 
+# la significancia de las comparaciones de promedios de grupo.
+# Estimate es el valor de la diferencia entre los tratamientos en cuestión.
+pairs(em)
+```
+
+# **5. Análisis de Correlación**
+
+Carga el excel `correlacion.xlsx` y asígnale el nombre `corr`.
+
+```{r eval=FALSE}
+# Carga el excel correlacion.xlsx y asígnale el nombre corr
+corr <- openxlsx::read.xlsx("correlacion.xlsx")
+corr <- openxlsx::read.xlsx(file.choose())
+```
+
+## 5.1 Pearson
+
+> -   A1: Ambas variables deben haber sido tomadas como pares relacionados.
+>
+> -   A2: Ambos conjuntos enfrentados deben ser continuos.
+>
+> -   A3: Debe haber una relación lineal entre las variables.
+>
+> -   A4: No deben existir outliers en los conjuntos de datos
+>
+> -   A5: Ambos conjuntos de datos deben seguir la distribución normal bivariada.
+
+Probemos con dos ejemplos de correlaciones: `biomass~height` y `height~DBH`.
+
+```{r eval=FALSE}
+view(corr)
+# A3 ------------------------------------------------------------------- 
+#   Verificar relación lineal de las variables
+ggscatter(x="biomass",y="height",data=corr)
+
+# A4 ------------------------------------------------------------------- 
+#   Verificar presencia de outliers
+# no hay outliers
+ggboxplot(y=c("biomass","height"),data=corr)
+
+# A5 ------------------------------------------------------------------- 
+#   Verificar distribución normal univariada
+library(nortest)
+ad.test(corr$biomass) # normal p-value = 0.5125
+ad.test(corr$height) # normal p-value = 0.9539
+
+#   Verificar distribución normal bivariada: Test de Mardia
+library(MVN)
+datos_corr<- corr %>% select(biomass,height) 
+datos.bnd <- mvn(datos_corr,mvnTest = "royston",
+                 univariateTest = "AD")
+datos.bnd <- mvn(datos_corr, mvnTest = "mardia",
+                 univariateTest="SW") # si hay normalidad multivariante
+
+#  ---------------------------------------------------------------------
+
+# EJECUTAR EL TEST
+# Realizar la correlación
+cor.test(corr$biomass,corr$height,method = "pearson")
+cor.test(corr$height,corr$biomass,method = "pearson")
+# p-value = 5.611e-12; corr = 0.6673333
+```
+
+## 5.2 Spearman/Kendall
+
+Usada cuando no se cumple con las asunciones de pearson. Usemos el ejemplo que no se pudo ejecutar en la sección de la correlación de Pearson.
+
+```{r eval=FALSE}
+# A2 ------------------------------------------------------------------- 
+#   Verificar que no hay distribución normal bivariada: Test de Mardia
+datos.corr2 <- corr %>% select(DBH,height)
+datos.bnd2 <- mvn(datos.corr2,mvnTest="royston") #no hay norm multi
+
+# A3 ------------------------------------------------------------------- 
+#   Verificar relación monotónica (i.e., en un solo sentido)
+ggscatter(x="DBH",y="height",data = datos.corr2)
+#  ---------------------------------------------------------------------
+
+# EJECUTAR EL TEST
+# Correlación de Spearman
+cor.test(corr$DBH,corr$height,method = "spearman")
+# rho=0.8804918
+
+# Correlación de Kendall
+cor.test(corr$DBH,corr$height,method = "kendall")
+# tau= 0.7040471
+```
+
+## 5.3 Punto Biserial
+
+Esta es una extensión de la correlación de Pearson, por ello se usa la misma función revisada en la sección 6.1. Contrastaremos la variable `LDL` en mg/dL vs el estatus dicotómico de `obesidad`.
+
+```{r eval=FALSE}
+# A2 ------------------------------------------------------------------- 
+#   Verifica la presencia de outliers en la variable cuantitativa 
+view(corr)
+corr %>% identify_outliers(LDL) # <0 rows> (or 0-length row.names)
+#  ---------------------------------------------------------------------
+
+# Visualiza la relación
+ggscatter(x="LDL",y="obesidad",data = corr)
+
+# Realiza la correlación Punto Biserial (LDL vs obesidad)
+cor.test(corr$LDL,corr$obesidad,method = "pearson")#cor=0.6448317
+```
+
+**La correlación es alta positiva (rho=0.6448317):**
+
+El pertenecer a la categoría 0 (no obeso) de la variable categórica guarda una alta correlación con bajos niveles de LDL (colesterol malo). Mientras que los que pertenecen a la categoría 1 (obeso) guardan una alta correlación con niveles altos de LDL (rho=0.65, p-value \<0.001).
+
+## 5.4 Biserial
+
+Contrastaremos la variable LDL en mg/dL vs la versión dicotomizada de la variable presión arterial. Aquí ya no testeamos la presencia de outliers en la variable cuantitativa porque ya lo hicimos en la sección anterior. No obstante, recuerda siempre revisar este supuesto teórico.
+
+```{r eval=FALSE}
+# A2 ------------------------------------------------------------------- 
+#   Verifica la presencia de outliers en la variable cuantitativa 
+corr %>% identify_outliers(LDL) #<0 rows> (or 0-length row.names)
+
+#  ---------------------------------------------------------------------
+
+# Realiza la correlación Biserial
+library(polycor)
+polyserial(corr$LDL,corr$presDico) # -0.9141895
+
+# Visualiza la relación
+ggscatter(x="LDL",y="presDicoDummy",data = corr, add = "reg.line")
+# no se debe poner una linea de regresión, solo para entender!
+```
+
+![Gráfico Biserial de presión arterial dicotomizada vs colesterol malo](images/rstudio_3Vh1BAv6cR.png)
+
+# **6. Poder estadístico**
+
+## 6.1 Tamaño del efecto: g
+
+Aquí revisaremos el cálculo del tamaño del efecto como `d de Cohens` o `g de Hedges` que nos sirven cuando comparamos dos grupos (Pruebas de T). El tamaño del efecto para ANOVAS, es decir, para cuando lidiamos con más de dos grupos, los calcularemos en las siguientes secciones.
+
+> -   Para la prueba t se usa **d** de cohen, corregido como **g** de hedges.
+>
+> -   Para Wilcoxon, U de Mann Whithey **delta** de Cliff
+>
+> -   Para correlaciones es el mismo **valor de correlación**
+>
+> -   Para regresiones es el **R^2^**
+>
+> -   Para Anova es el Eta cuadrado **n^2^**
+>
+> -   La opción menos sesgadas para N pequeños es el Omega cuadrado **w^2^**
+
+```{r eval=FALSE}
+# Cargar la base de datos mice2 de la librería datarium
+data("mice2")
+
+# Transformemos hacia tabla larga para poder procesar mejor 
+# con la función de tamaño de efecto para comparaciones de dos grupos
+mice3 <- mice2 %>% 
+  gather(key="categoria", value="pesos", 2:3)
+
+# Calcula el tamaño del efecto para comparaciones de dos grupos
+library(effsize)
+cohen.d(mice3$pesos,mice3$categoria)
+# d estimate: 7.805217 (large), con 1 era suficiente xd
+# con valores superiores a 2 con un pequeño n muestral se halla
+# un 100% de poder de la muestra
+```
+
+## 6.2 Cálculo del Poder: Prueba de T
+
+```{r eval=FALSE}
+# Obtén el valor de g (tamaño del efecto con correción de Hedges)
+cohen.d(mice3$pesos,mice3$categoria, hedges.correction = TRUE)
+# g estimate: 7.475419 (large)
+
+# Número de observaciones por grupo (n)
+table(mice3$categoria)
+# Poder estadístico del análisis
+# Calcula el poder de la Prueba T con mismo N por grupos
+library(pwr)
+pwr.t.test(n=10,d=7.475419,sig.level=0.05)
+# power = 1
+
+# Calcula el poder de la Prueba T con diferente N por grupos
+# colocan el n de cada grupo en n1 y n2.
+pwr.2p2n.test(n1=10,n2=10,h=7.475419,sig.level=0.05)
+```
+
+### **Gráfico del Poder para identificar el N muestral óptimo**
+
+Veamos cuánto N muestral necesitaríamos para obtener un tamaño de efecto determinado para una muestra que en el testeo preliminar nos arrojó un tamaño de efecto de 0.3.
+
+```{r eval=FALSE}
+poder <- pwr.t.test(d=0.3,power = 0.75,sig.level = 0.05)
+plot(poder) # muy util plotear para obtener los poderes
+# en la curva
+```
+
+## 6.3 Cálculo del Poder: Anova de una vía balanceado
+
+```{r eval=FALSE}
+# Definir el ANOVA a trabajar
+a1v <- anova(lm(len~dose, data=ToothGrowth))
+
+# Calcular el tamaño del efecto del ANOVA de una vía
+# Identifica el número de muestras para decidir entre 
+# eta cuadrado u omega cuadrado
+effectsize::eta_squared(a1v) # etasqr=0.64
+effectsize::omega_squared(a1v) # omega2=0.63, para db smalls
+
+# Verificar el número de casos en la cada variable de agrupamiento
+table(ToothGrowth$dose)
+
+# Poder estadístico del análisis
+library(pwr)
+pwr.anova.test(n=20,k=3,sig.level = 0.05,f=0.63)
+# power = 0.9928436
+pwr.anova.test(power=0.75,k=3,sig.level = 0.05,f=0.73)
+# n = 6.480334, casi 7 muestras
+
+# Ahora, sabiendo el poder que queremos, identifiquemos el 
+# n muestral necesario para obtenerlo.
+poder.aov1 <- pwr.anova.test(power=0.75,k=3,sig.level = 0.05,f=0.73)
+
+# Gráfico del Poder para identificar el N muestral óptimo
+plot(poder.aov1)
+```
+
+## 6.4 Cálculo del Poder: Anova de dos vías balanceado
+
+```{r eval=FALSE}
+# Definir el ANOVA a trabajar
+a2v <- anova(lm(len~dose+supp, data=ToothGrowth))
+
+# Calcular el tamaño del efecto del ANOVA de dos vías
+# Identifica el número de muestras para decidir entre 
+# eta cuadrado u omega cuadrado
+effectsize::omega_squared(a2v) # dose=0.67,supp=0.15
+
+# Verificar el número de casos por cada variable de agrupamiento
+
+
+# Poder estadístico del análisis
+library(pwr2)
+pwr.2way(alpha = 0.05 , # nivel de significancia
+         size.A = 20,    # N del primer factor para cada grupo
+         size.B = 30,    # N del segundo factor para cada grupo
+         f.A = 0.67   ,     # Tamaño del efecto del primer factor
+         f.B =0.15,     # Tamaño del efecto del segundo factor
+         a = 3     ,         # Número de grupos del primer factor
+         b = 2 )         # Número de grupos del segundo factor
+# power.A = 0.9999995, power.B = 0.5165924,power = 0.5165924
+# no tiene gráfico XD
+```
+
+Para otras pruebas de las que no se tengan una función para obtener estos análisis del poder estadístico, pueden usar simulaciones de Monte Carlo, con el enfoque de un análisis Bayesiano: Bayesian Power Analysis. Uno de los mejores ejemplos de su uso pueden encontrarlo a detalle en el siguiente RPubs:
+
+[RPubs - Generic Bayesian power analysis](https://rpubs.com/kachergis/Generic_Bayesian_power)
+
+

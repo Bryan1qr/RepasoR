@@ -1,0 +1,595 @@
+---
+title: "Análisis Estadístico Básico con R C2-S2"
+Subtitle: 'P.C.E. Data Science: Estadística y Análisis de Datos en R'
+Author: Irwing S. Saldaña
+output:
+  pdf_document: default
+  html_document: default
+editor_options:
+  chunk_output_type: console
+---
+
+Instalar librerías nuevas
+
+```{r eval=FALSE}
+install.packages("moments")
+install.packages("bestNormalize")
+install.packages("dslabs")
+install.packages("performance")
+install.packages("qqplotr")
+#install.packages("nortest")
+install.packages("rstatix")
+#install.packages("broom")
+install.packages("DescTools")
+install.packages("ggpubr")
+install.packages("see")
+install.packages("ggpubr")
+install.packages("sjPlot")
+```
+
+Librerías a usar
+
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+library(moments)
+library(nortest)
+library(rstatix)
+library(bestNormalize)
+library(dslabs)
+library(broom)
+library(ggpubr)
+library(performance)
+```
+
+# **1. Pruebas de Normalidad**
+
+Las técnicas que revisaremos a continuación serán utilizadas para determinar la normalidad de un conjunto de datos. Recuerda que dicho conjunto de datos puede ser:
+
+-   Tus datos originales resultantes de un muestreo, o
+
+-   Los residuales de un modelo estadístico sobre los cuales debe verificarse la normalidad.
+
+```{r warning=FALSE, message=FALSE}
+library(kableExtra)
+
+head(ToothGrowth) %>% kable(booktabs=TRUE) %>% 
+  kable_styling(font_size = 12)
+```
+
+```{r eval=FALSE}
+# Carga la base de datos ToothGrowth
+data("ToothGrowth")
+view(ToothGrowth)
+# Cambiemos los valores de ToothGrowth
+# para entender mejor la información
+ToothGrowth$supp <- factor(ToothGrowth$supp,
+                           labels = c("OJ"="JN",
+                                      "VC"="AA"))
+
+# Gráfico de densidad sencillo para toda la data
+plot(density(ToothGrowth$len))
+
+# Separar los grupos para luego poder verificar 
+# la normalidad de cada uno de ellos por separado
+JN <- ToothGrowth %>% filter(supp=="JN") %>% pull(len)
+AA <- ToothGrowth %>% filter(supp=="AA") %>% pull(len)
+
+# Gráficos de densidad de cada grupo
+par(mfrow=c(1,2))
+plot(density(JN),main = "Jugo de Naranja")
+plot(density(AA),main = "Ácido Ascórbico")
+dev.off()
+```
+
+## **1.1 Simetria y Curtosis**
+
+Recordemos los rangos de valores para la simetría y curtosis.
+
+**Simetría:**
+
+-   *Asimetría positiva*: mayor a 0.5
+
+-   *Simetría (normalidad)*: entre -0.5 y 0.5
+
+-   *Asimetría negativa*: menor a -0.5
+
+**Curtosis:**
+
+-   *Leptocúrtica*: K > 3
+
+-   *Mesocúrtica (normalidad)*: K \~ 3
+
+-   *Platicúrtica*: K \< 3
+
+```{r eval=FALSE}
+# La funciones que usaremos están almacenadas en la librería moments
+library(moments)
+
+# Calculemos la Simetría de la base de datos ToothGrowth
+skewness(ToothGrowth$len) # -0.1461768
+
+# Calculemos la Curtosis de la base de datos ToothGrowth
+# de la librería moments
+kurtosis(ToothGrowth$len) # 2.024403
+
+# aún así podría haber normalidad, no es muy lejano a 3
+# Calcular la simetría y curstosis del grupo Jugo de Naranja y ácido 
+# ascórbico
+skewness(AA) # 0.2900364 es simétrica
+skewness(JN) # -0.5504998 asimetria negativa 
+kurtosis(AA) # 2.217982 Platicúrtica
+kurtosis(JN) # 2.107601 platicúrtica
+
+ToothGrowth %>% group_by(supp) %>% 
+  select(len,supp) %>% summarise_if(is.numeric,lst(skewness))
+
+ToothGrowth %>% group_by(supp) %>% 
+  select(len,supp) %>% summarise_if(is.numeric,lst(kurtosis))
+
+ToothGrowth %>% group_by(supp) %>% 
+  select(len,supp) %>% summarise_if(is.numeric,lst(kurtosis))
+```
+
+## **1.2 Tests de Normalidad**
+
+El objetivo es comprobar si la distribución empírica de un conjunto de datos (`eCDF`) encaja dentro de la distribución teórica Normal.
+
+> **IMPORTANTE:** Deseamos observar p-valores MAYORES a 0.05, de tal manera que aceptemos la hipótesis nula "no existen diferencias significativas entre la distribución empírica de probabilidades de mis datos y la distribución teórica de probabilidades Normal".
+
+-   H0: No existe diferencia entre la distribución teórica normal y la distribución empírica de los datos.
+
+-   Ha: Existe diferencia entre la distribución teórica normal y la distribución empírica de los datos.
+
+**Prueba de Kolmogorov-Smirnov (KS Test)**
+
+```{r eval=FALSE}
+# Test de Kolmogorov-Smirnov de JN y AA
+ks.test(JN,"pnorm",mean(JN),sd(JN)) # p-value = 0.6152 
+xd <- ks.test(AA,"pnorm",mean(AA),sd(AA)) # p-value = 0.9845
+# > xd$p.value [1] 0.9844541
+```
+
+**Prueba de Shapiro-Wilk (SW Test)**
+
+```{r eval=FALSE}
+# Test de Shapiro-Wilk de JN y AA
+# shapiro.test no es pipe friendly
+shapiro_test(JN)
+shapiro_test(AA)
+
+# Test de Shapiro usando funciones Pipe-friendly y dplyr. 
+# La función que usaremos está almacenada en la librería rstatix
+# Trabajemos con la base de datos iris para calcular el test de SW
+# agrupando por Species  
+# Aplicar sobre shapiro_test() sobre varias columnas a la vez
+library(rstatix)
+iris %>% group_by(Species) %>% 
+  shapiro_test(Petal.Length,Sepal.Length,Sepal.Width)
+```
+
+**Prueba de Anderson-Darling (AD Test)**
+
+```{r eval=FALSE}
+# La función que usaremos está almacenada en la librería nortest
+library(nortest)
+
+# Grafiquemos la densidad de la variable Ozone base de datos airquality 
+plot(density(airquality$Ozone,na.rm = T),
+     main = "Gráfico de densidad de Ozono",
+     ylab = "Densidad",
+     xlab = "Valores de concentración (ug/m3",
+     col="purple")
+
+# en el caso de cambiar nombres podemos hacer uso de fix sobre un vec
+nomqual <- names(airquality)
+fix(nomqual)
+# Revisemos el simetría para corroborar
+# lo que vemos en la gráfica
+skewness(airquality$Ozone,na.rm = T) # 1.225681 asimetria posit
+
+# Veamos el valor del AD Test
+ad.test(AA) # p-value = 0.6669 normalidad
+ad.test(JN) # p-value = 0.01647
+xde <- ad.test(airquality$Ozone) # p-value = 2.787e-11 no normal
+
+# AD Test para varios grupos con dplyr
+# ambos métodos funcionan
+ad.test.p <- function(x){
+  prueba <- ad.test(x)
+  prueba$p.value
+}
+
+# según el profe
+ad.test.p <- function(x){
+  test <- nortest::ad.test(x)
+  return(as.vector(test$p.value))
+}
+
+# ahora el estadístico de ad
+ad.test.stat <- ad.test.p <- function(x){
+  prueba <- ad.test(x)
+  prueba$statistic
+}
+
+# según el profe
+ad.test.stat <- function(x){
+  test <- nortest::ad.test(x)
+  return(as.vector(test$statistic))
+}
+
+  
+as.test.p(airquality$Ozone)
+iris %>% 
+  group_by(Species) %>% 
+  summarise_at(.vars = 1:4,.funs = (ad.test.p))
+
+airquality %>% group_by(Month) %>% 
+  summarise_at(.vars = nomqual,.funs = ad.test.p)
+
+# varias ambos estadísticos
+airquality %>% 
+  group_by(Month) %>% 
+  summarise_at(.vars = nomqual,
+               .funs = list(ad.test.stat,ad.test.p))
+
+iris %>% 
+  group_by(Species) %>% 
+  summarise_at(.vars = 1:4,
+               .funs = list(pvalor=ad.test.p,stat=ad.test.stat)) %>% 
+  t() %>% View()
+```
+
+## **1.3 Q-Q Plot**
+
+El gráfico cuantil-cuantil enfrenta los cuantiles del muestreo con sus cuantiles tóricos según la distribución Normal. Si los cuantiles del muestreo son idénticos o muy cercanos a los cuantiles teóricos, entonces los puntos se agregan en la línea diagonal del gráfico, la línea Q-Q con intercepto 0 y pendiente 1.
+
+```{r eval=FALSE}
+# Calculemos el Q-Q Plot Manualmente para entender su origen
+# Usemos la base de datos de Ácido Ascórbico AA
+dist.muestra <- sort(AA)
+probabilidades <- ppoints(AA)
+dist.teorica <-qnorm(probabilidades, mean(AA),sd(AA))
+
+# REVISAR "?par de graphics"
+plot(dist.teorica, dist.muestra,
+     title("Gráfica Q-Q Plot"),
+     xlab = "Distribución teórica",
+     ylab = "Distribución muestral")
+abline(a=0,b=1,col="purple",lwd=2)
+
+# Ahora automaticemos el proceso con  qqnorm() y qqline()
+# se usa vectores
+qqnorm(AA)
+qqline(AA, col="blue",lwd=2.1)
+
+# SI HAY NORMALIDAD GRÁFICA
+# comprobamos numéricamente:
+shapiro_test(AA) # p=0.428
+
+# Crea el Q-Q Plot de la base de datos Jugo de Naranja JN
+qqnorm(JN)
+qqline(JN,col="green",lwd=2.2)
+# no hay normalidad gráfica
+# ni normalidad numérica
+shapiro_test(JN) # 0.0236
+```
+
+![Comparativa de QQplots](images/rstudio_gaGIEp6RVU.png "QQplots")
+
+En la figura 1, en la primera gráfica, se aprecia valores de dispersión en los extremos que se alejan de la línea QQ esto se debe a que no se han quitado los valores atípicos, mas no implican ausencia de normalidad. En cuanto a la segunda se ve que almedio hay valores seguidos que no cumplen la semejanza, por lo que no hay normalidad.
+
+# **2. Normalizar Datasets**
+
+En algunas ocasiones necesitaremos realizar una transformación del conjunto de datos de tal manera que este se normalice, es decir, luzca más parecido a la distribución teórica normal de que originalmente es. Esto implica, tener simetría y curtosis normales, u obtener p-valores no significativos en los test de normalidad. Mayor información sobre el paquete bestNormalize en [Using the bestNormalize Package (r-project.org)](https://cran.r-project.org/web/packages/bestNormalize/vignettes/bestNormalize.html).
+
+```{r eval=FALSE}
+# La función que usaremos está almacenada en la librería bestNormalize
+library(bestNormalize)
+
+# Ejecutemos la función bestNormalize() con nuestros datos JN
+# desactivamos los argumentos para tener una desición libre
+bestNormalize(JN, out_of_sample = F, allow_orderNorm = F)
+
+# Apliquemos la función de normalización indicada por bestNormalize()
+Nueva_JN <- bestNormalize::boxcox(JN)
+Nueva_JN$x.t # datos transformados
+
+# Verificar con el gráfico Q-Q Plot
+# vemos que no fue suficiente la transforamción para normalizar
+qqnorm(Nueva_JN$x.t)
+qqline(Nueva_JN$x.t)
+# como último recurso se puede usar la de ordernorm
+
+# Verificar con el test de Shapiro-Wilk
+# si hay normalidad numérica  
+shapiro.test(Nueva_JN$x.t) #p-value = 0.1008
+```
+
+Debemos tener cuidado al aplicar transformaciones en un solo grupo de un conjunto de datos. Es mejor transformar toda la base de datos (columna). Verifiquemos cómo afecta la transformación.
+
+```{r eval=FALSE}
+# Grafiquemos los boxplots AA, JN y Nueva_JN
+boxplot(AA,JN, Nueva_JN$x.t, names = c("AA","JN","Nueva JN"))
+# vemos la importancia de transformar todos los grupos de datos
+```
+
+Apliquemos la transformación a toda la columna `len` de la base de datos `ToothGrowth`. Luego, guardemos los datos transformados como una columna llamada `Nlen` dentro de la misma base de datos.
+
+```{r eval=FALSE}
+# Hagamos lo mismo con la base AA
+Nueva_AA <- boxcox(AA)
+
+# Verificar con el gráfico Q-Q Plot
+qqnorm(Nueva_AA$x.t)
+qqline(Nueva_AA$x.t)
+  
+# Verificar con el test de Shapiro-Wilk
+shapiro.test(Nueva_AA$x.t)
+
+# Grafiquemos nuevamente los boxplots AA, JN,
+# Nueva_AA y Nueva_JN
+par(mfrow=c(2,1))
+boxplot(AA,JN)
+boxplot(Nueva_AA$x.t,Nueva_JN$x.t)
+
+# Nos adelantaremos un poco y contrastaremos las pruebas T:
+#  H0: no existen diferencias significativas...
+#  Ha: existen diferencias significativas...
+
+# prueba t con corrección de welch
+t.test(AA,JN) # p-value = 0.06063
+t.test(Nueva_AA$x.t,JN) # p-value < 2.2e-16 obviamente
+# Welch Two Sample t-test
+t.test(Nueva_AA$x.t,Nueva_JN$x.t) # p-value = 1
+```
+
+# **3. Comparación de grupos (parte 1)**
+
+En esta primera parte, aplicaremos los métodos de comparación de dos grupos, tanto a nivel paramétrico como no paramétrico.
+
+> **Pruebas de una o dos colas**
+>
+> La prueba de una cola (less o greater) es apropiada si solo desea determinar si hay una diferencia entre los grupos en una dirección específica. Por lo tanto, si solo está interesado en determinar si el Grupo A muestra un promedio más alto que el Grupo B, y no estás interesado en la posibilidad de que el Grupo A muestre un promedio más bajo que el Grupo B.
+>
+> La principal ventaja de utilizar una prueba de una cola es que tiene más poder estadístico que una prueba de dos colas al mismo nivel de significancia (por ejemplo: 0.05). En otras palabras, es más probable que sus resultados sean significativos para una prueba de una cola si realmente hay una diferencia entre los grupos en la dirección que ha predicho.
+
+Creemos un conjunto de datos. Crea la variable `x` conteniendo los valores de `Sepal.Length` filtrando la especie (columna `Species`) `setosa`, y la variable `y` con el filtrado para la especie `versicolor`.
+
+```{r eval=FALSE}
+# Filtra la base de datos iris
+x <- iris %>% filter(iris$Species=="setosa") %>%
+  pull(Sepal.Length)
+y <- iris %>% filter(iris$Species=="versicolor") %>%
+  pull(Sepal.Length)
+
+# ¿Como corroboro si los grupos 
+# tienen varianza diferente o similar?
+# exiaten diferencias proque las cajas no se tocan
+boxplot(x,y)
+# leveneTest requiere tabla larga
+data <- iris %>% filter(Species %in% c("setosa","versicolor"))
+# prueba de homogeneidad de varianza
+# resultan significativas, no son homogéneas
+car::leveneTest(iris$Sepal.Length,iris$Species)
+```
+
+## **3.1 Comparación de dos grupos (Paramétrico)**
+
+Alternativa de dos colas: la nula dice que a ambos lados no es diferente del promedio esperado.
+
+Alternativa de less: la alterna dice que el grupo es significativamente menos que el valor esperado.
+
+Alternativa de greater: la alterna dice que el grupo es significativamente mayor que el valor esperado.
+
+Esto es similar para el caso de dos grupos.
+
+```{r eval=FALSE}
+# t-test de una muestra
+t.test(x,mu=6) #p-value < 2.2e-16, prueba dos colas two.sides
+t.test(x,mu=6,alternative = "less")
+t.test(x,mu=6,alternative = "greater")
+
+# t-test de dos muestras dependientes
+t.test(x,y,paired = TRUE) # p-value = 1.242e-13
+
+# t-test de dos muestras independientes con varianzas iguales (pooled)
+# cuando son iguales las varianzas se procede a 
+  t.test(x,y,var.equal = TRUE)
+
+# t-test de dos muestras independientes con varianzas desiguales
+  # con varianzas desiguales se activa la corrección de welch
+t.test(x,y,var.equal = FALSE)
+t.test(x,y,var.equal = FALSE, alternative = "less")
+t.test(x,y,var.equal = FALSE, alternative = "greater")
+```
+
+## **3.2 Comparación de dos grupos (No Paramétrico)**
+
+```{r eval=FALSE}
+# Creamos dos variables que de antemano sabemos
+# no tienen distribución normal
+w <- rpois(100,lambda = 5)
+z <- rpois(100,lambda = 25)
+
+# Test de Wilcoxon de una muestra
+# aquí el mu y el lambda es mediana
+wilcox.test(w,mu = 4) # p-value = 0.004273
+wilcox.test(w,mu = 4, alternative = "less")
+wilcox.test(w,mu = 4, alternative = "greater")
+
+# Test de Rangos con Signo de Wilcoxon 
+# Para muestras pareadas (DEPENDIENTES)
+# Que no tengan distribución normal
+wilcox.test(w,z,paired = TRUE) p-value < 2.2e-16
+
+# Test U de Mann-Whitney
+# Para muestras no pareadas (INDEPENDIENTES)
+# Que no tengan distribución normal
+wilcox.test(w,z)
+```
+
+# **4. Regresiones Lineales Simples**
+
+> **Recomendación:** Siempre que generes un modelamiento, sea del tipo que sea, es recomendable guardarlo con algún nombre asignado en el ambiente de RStudio. Esto facilita llamar el modelo en posteriores ocaciones, para ver los resultados, para comparar modelos, etc.
+
+# Asunciones teóricas del modelo lineal
+
+```{r eval=FALSE}
+library(dslabs)
+data("temp_carbon")
+# las variables no deben tener NAs
+temp_carbon <- na.omit(temp_carbon)
+# A1: La variable respuesta debe ser continua.
+str(temp_carbon) #TRUE
+
+# A2: La relación entre X e Y debe ser lineal
+# primero usando ggpubr:
+library(ggpubr)
+ggscatter(x="temp_anomaly" ,y="carbon_emissions", data=temp_carbon)
+# con ggplot:
+temp_carbon %>% 
+  ggplot(aes(y=temp_anomaly ,x=carbon_emissions))+
+  geom_point()+
+  geom_smooth(method = "lm")
+
+# A4: La variable respuesta no debe tener outliers en ningún nivel
+# de análisis.
+boxplot.stats(temp_carbon$temp_anomaly) # no outliers
+
+```
+
+# Ejecución del modelo lineal
+
+```{r eval=FALSE}
+# Realizar el modelo
+modelo.lm <- lm(temp_anomaly~carbon_emissions, data = temp_carbon)
+
+# A2,A4,A5,A6
+# GRAFICAR LAS ASUNCIONES TEÓRICAS
+par(mfrow=c(2,2))
+plot(modelo.lm)
+dev.off()
+summary(modelo.lm)
+
+# Gráficas de las asunciones más amigables
+performance::check_model(modelo.lm)
+
+# predicciones en base al modelo lineal
+predict(modelo.lm, # -0.1491239 
+        data.frame(carbon_emissions=1100))
+predict(modelo.lm, # -0.2490601 
+        data.frame(carbon_emissions=100))
+
+# restando
+-0.1491239--0.2490601  #0.0999362
+# por cada aumento de 1000 unidades de emision de
+# carbono se predice que la anomalía aumenta en 1000 unidades   
+
+# valores de residuales calculados del modelo
+resid(modelo.lm)
+modelo.lm$residuals
+# se puede generar una tabla con stats
+tabl <- broom::augment(modelo.lm)
+```
+
+![Check model de performance](images/rstudio_cmljZRWqwN.png "Asunciones de la regresión lineal")
+
+La figura 2 se explica sola XD
+
+# Contrastando modelos aditivos y con interacción
+
+```{r eval=FALSE}
+# Cargamos la BD interacción
+interac <- openxlsx::read.xlsx("interaccion.xlsx")
+# Definiendo las categorías como factor y establecer el nivel base
+# presión.Cat es caracter y podría ser factor
+```
+
+### Base de datos cargada
+
+```{r}
+openxlsx::read.xlsx("interaccion.xlsx")
+```
+
+```{r eval=FALSE}
+# cohercionando a factor y reordenando los niveles
+# esto ultimo es importante porque se debe definir el nivel 
+# base para el intercepto
+interac$Presion.Cat <- factor(interac$Presion.Cat,
+                              levels = c("baja","alta"),
+                              labels = c("baja"="Baja",
+                                         "alta"="Alta"))
+
+# Modelo lineal sin interacción
+modelo1 <- lm(Fuerza~Temp+Presion.Cat, data = interac)
+
+# Modelo lineal con interacción
+modelo2 <- lm(Fuerza~Temp*Presion.Cat, data = interac)
+
+# Graficando los modelos
+# primero el modelo sin interacción
+sjPlot::plot_model(modelo1,type = "eff",grid = T)
+# con interaccióm
+sjPlot::plot_model(modelo2,type="int")
+
+# prediciendo el valor de aumento por cambio de categoría
+predict(modelo1,data.frame(Temp=0,Presion.Cat="Alta"))  -
+  predict(modelo1,data.frame(Temp=0,Presion.Cat="Baja"))
+# se genera un aumento de 20.6427 de unidades de Fuerza
+
+# De manera similar puede hallarse  haciendo variar la temperatura
+predict(modelo1,data.frame(Temp=1,Presion.Cat="Baja"))  -
+  predict(modelo1,data.frame(Temp=0,Presion.Cat="Baja"))
+# 0.21919 aumento de 0.21919  unidades de fuerza por aumento en temp
+```
+
+![Gráfico de efectos del modelo1](images/rstudio_uv7WEz3wzQ.png)
+
+La parte derecha de la figura 4 muestra un gráfico lineal, sin embargo este puede reemplazarse por uno de bigotes, que que la variable presión es categórica.
+
+# Lidiando con outliers
+
+```{r eval=FALSE}
+# Primero boxplot
+ggpubr::ggboxplot(y="Ozone",data=airquality)
+# por mes
+ggboxplot(y="Ozone",x="Month",data = airquality)
+# Valor de la distancia intercuartil
+iqr <- IQR(airquality$Ozone,na.rm = T) # 45.25
+
+# viendo los cuantiles
+quantile(airquality$Ozone,na.rm = T)
+Q1 <- 18.00
+Q3 <- 63.25
+iqr <- Q3-Q1 # [1] 45.25
+
+# Límite inferior
+Q1-1.5*iqr #
+# Límite superior
+Q3+1.5*iqr # 131.125
+
+# Verifiquemos los valores fuera de rango
+sort(airquality$Ozone)
+# Cuales son los valores de outliers
+boxplot.stats(airquality$Ozone) # out = [1] 135 168
+
+# trabajando con la librería  rstatix
+rstatix::identify_outliers(airquality, Ozone)
+```
+
+![Outliers de Ozono usando rstatix](images/rstudio_szmIS18RJc.png)
+
+```{r eval=FALSE}
+out <- rstatix::identify_outliers(airquality, Ozone)
+
+# limpiando los outliers
+limpieza <- anti_join(airquality,out) # ya no tiene outliers (DF)
+
+# Limpiando outliers para el caso de datos agrupados
+out2 <- airquality %>% group_by(Month) %>% 
+  identify_outliers(Ozone)
+
+limpieza2 <- anti_join(airquality,out2) # # ya no tiene outliers (DF)
+```
+
+![Outliers por fecha](images/rstudio_ci61Ao0UM8.png)

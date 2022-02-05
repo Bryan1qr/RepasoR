@@ -1,0 +1,696 @@
+---
+title: "Análisis Estadístico Básico con R C2-S1"
+Subtitle: 'P.C.E. Data Science: Estadística y Análisis de Datos en R'
+Author: Bryan Antony Quispe Ramos
+output:
+  html_document:
+    df_print: paged
+  chunk_output_type: console
+  pdf_document: default
+---
+
+Instalar librerías nuevas
+
+```{r eval=FALSE}
+install.packages("latticeExtra")
+```
+
+Librerías a usar
+
+```{r eval=FALSE}
+library(tidyverse)
+library(psych)
+library(latticeExtra)
+```
+
+# **5. Probabilidades Discretas**
+
+Las probabilidades discretas describen la probabilidad de ocurrencia de cada valor de una variable aleatoria discreta.
+
+En conjuntos de datos discretos, la probabilidad de ocurrencia de un evento es
+
+$$
+Pr(A)= \text{probabilidad del evento A}  = \text{proporción del evento A}
+$$
+
+Lo que se puede calcular con la **fórmula**:
+
+$$
+Pr(A)= \frac{\text{# resultados favorables al evento A posibles}}{\text{# total de resultados posibles}}
+$$
+
+```{r eval=FALSE}
+# Probabilidades en un dado
+dado <- 1:6
+sample(dado,1,replace = TRUE)
+```
+
+Veamos la importancia del `n` muestral para definir probabilidades de eventos discretos utilizando la:
+
+## Simulación de Monte Carlo
+
+```{r eval=FALSE}
+# Usa el dado virtual creado en el chunk anterior, y
+# genera una muestra de 10,000 lanzamientos aleatorios
+resultados <- sample(dado,1000,replace = T)
+
+# Obtener la proporción de cada resultado de los lanzamientos
+tabal <- table(sample(dado,1000,replace = T))
+prop.table(tabal)
+```
+
+Adicionalmente, como ya hemos ido viendo en el primer curso de Introducción a R para Ciencias, `mean()`, que es la función para calcular promedios, también se usa para contar valores verdaderos `TRUE` de un conjunto de datos lógicos.
+
+```{r eval=FALSE}
+# Importante uso de mean()
+# resultados==6
+mean(resultados==6) 
+```
+
+***Regresemos a las diapositivas para recordar la importancia de la independencia.***
+
+## **5.1. Probabilidades discretas para muestras Dependientes**
+
+Recordemos el ejemplo de la probabilidade extrar la etiqueta `"niño"` o `"adulto"` de la variable edad.
+
+```{r eval=FALSE}
+edad <- c(rep("adulto",3),rep("niño",2))
+```
+
+¿Cómo afecta la independencia al cálculo de la probabilidad?. Para calcular probabilidades consecutivas cuando las muestras son dependientes, hablamos de ***probabilidades condicionales***. Primero, veamos la probabilidad del evento 1 `Pr(A)`.
+
+$$
+Pr(A)=Pr(\text{probabilidad del evento 1 = `Niño`})= 2/5
+$$
+
+Luego de obtener esa primera muestra, calculamos la probabilidad de que el segundo evento sea niño, dado que el primero fue niño `Pr(B|A)`.
+
+$$
+Pr(B∣A)=Pr(\text{probabilidad del evento 2 = `Niño`}∣\text{probabilidad del evento 1 = `Niño`})=1/4
+$$
+
+¿Cuál es la probabilidad de obtener Niño y Niño consecutivamente `Pr(A y B)`?.
+
+$$
+Pr(\text{A y B}) = Pr(A) * Pr(B∣A) = 2/5 * 1/4 = 2/20 = 0.1
+$$
+
+## **5.2. Probabilidades discretas para muestras Independientes**
+
+En casos de muestras independientes, no hay condicionales. Si el ejemplo anterior hubiera sido *con reemplazamiento*, entonces las muestras son independientes, y por tanto las probabilidades se multiplican de esta manera. ¿Cuál es la probabilidad de obtener Niño dos veces consecutivas?
+
+$$
+Pr(\text{A y B})=Pr(A)×Pr(B)=2/5*2/5=0.4*0.4=0.16
+$$
+
+# **6. Probabilidades Continuas**
+
+Las probabilidades continuas describen la probabilidad de los posibles valores de una variable aleatoria continua. Una variable aleatoria continua es una variable aleatoria con un conjunto de valores posibles (conocido como rango o intervalo) que es infinito e incontable. Esto quiere decir, para distribuciones continuas, la probabilidad de un solo valor no está definida. Estas distribuciones de probabilidades se pueden representar con la **función de distribución acumulativa** **empírica** (**ECDF**).
+
+## **6.1. Función de distribución acumulativa empírica** **ECDF**
+
+```{r eval=FALSE}
+# Carga la base de datos "alturas.xlsx"
+alturas <- openxlsx::read.xlsx("alturas.xlsx")
+
+# Grafíca un eCDF para comprender mejor las notaciones matemáticas
+library(latticeExtra)
+#dos formas de plotear ecdf
+ecdfplot(alturas$cm)
+ecdfplot(~cm,data = alturas)
+```
+
+La **eCDF** es una función de distribución para datos, llamada `F(a)`, continuos que informa la ***proporción*** de los datos debajo de un valor especificado `a`:
+
+$$
+F(a)=Pr(x≤a) = \text{proporción de valores menores igual a `a`}
+$$
+
+Esta proporción nos aproxima a la ***probabilidad*** `Pr(x≤a)` de que un valor `x` se encuentre dentro de un rango del mínimo del conjunto de datos hasta `a`:
+
+$$
+F(a)=Pr(x≤a) = \text{probabilidad de que x ∈ al rango min(X) hasta `a`}
+$$
+
+Si quiero hallar la probabilidad `Pr(x>a)` de que un valor `x` sea superior al rango desde el mínimo del conjunto de datos hasta `a`, debo calcular el complemento `1-F(a)`:
+
+$$
+Pr(x>a)=1−F(a)=1-Pr(x≤a)
+$$
+
+La probabilidad de que una observación esté entre dos valores `a` y `b`, por tanto será:
+
+$$
+F(b)−F(a)
+$$
+
+### Ejemplo ECDF
+
+Se tiene un conjunto de mediciones de altura de varias personas de género masculino y femenino. Se desea conocer la ***probabilidad*** de que al escoger de manera aleatoria una persona de género masculino, este tenga más de 180 cm de altura, *dado que todas las observaciones tienen la misma probabilidad de ser escogidas.* Para calcular esto debemos calcular la **función de distribución acumulativa empírica** **ECDF** `F(a)`.
+
+$$
+Pr(x>180)=1−Pr(x≤180)=1−F(180)
+$$
+
+```{r eval=FALSE}
+# Trabajaremos con la variable generada al cargar el excel alturas.xlsx
+# Realiza un subset seleccionando unicamente valores para el sexo Masculino
+# pull extrae un vector de una columna
+masc <- filter(alturas,sexo=="Masculino") %>% pull(cm)
+head(masc)
+# Crea una función llamada CDF para calcular el CDF de un conjunto de datos
+mean(masc <= 180) #0.6539409
+
+ECDF <- function(x,y){
+  mean(x <= y)
+}
+# Calcular la probabilidad de que al tomar al azar un elemento
+# de la variable Masc, este tenga talla inferior a 180
+ECDF(masc,180) # 0.6539409
+
+# Calcular la probabilidad de que al tomar al azar un elemento
+# de la variable Masc, este tenga talla superior a 180
+1-ECDF(masc,180) #0.3460591
+
+# Gráfico eCDF
+ecdfplot(masc) # porque es vector, sale más facil que un df
+```
+
+#### **--- Ejercicio 01**
+
+Carga la base de datos `storms`, hallada dentro de la librería `dplyr`. Calcula la probabilidad de que un huracán (filtra los valores `hurricane` en la columna `status`) tenga un diámetro de tormenta (columna `ts_diameter`) superior a 600 km, menor igual a 500 km, y entre 200 y 400 km.
+
+```{r eval=FALSE}
+# Activar base de datos precargada en R 
+data("storms")
+
+# Filtra la base para cumplir lo solicitado
+#usamos un truco para tratar con nas
+HURRI <- filter(storms,
+                status=="hurricane" &
+                  !is.na(ts_diameter)) %>%
+  pull(ts_diameter)
+
+
+
+# probabilidad de ts_diameter superior a 600 km
+1-ECDF(HURRI,600) #0.03330069
+
+# probabilidad de ts_diameter menor igual a 500 km
+ECDF(HURRI,500) #0.9392752
+
+# probabilidad de ts_diameter entre 200 y 400 km
+ECDF(HURRI,400)-ECDF(HURRI,200) # 0.5925563
+
+```
+
+## **6.2 Función de distribución acumulativa CDF**
+
+Es posible calcular una aproximación a estos resultados si conocemos a qué distribución teórica de probabilidades corresponde nuestra variable de estudio. En este caso, nos adelantamos y decimos que las mediciones de altura corresponden a una **distribución de probabilidades Normal.**
+
+La distribución Normal se usa, por tanto, como una aproximación muy útil de muchos eventos naturales. Podemos obtener la CDF (no la empírica sino la teórica) de la distribución Normal en R la función `pnorm()`, la cual contiene la formula matemática para su cálculo.
+
+En nuestro ejemplo, solo necesitamos los valores que describen mi población, no los valores de muestreo. Estos son, la altura *promedio* y la *desviación estándar* para calcular la probabilidad de un intervalo.
+
+```{r eval=FALSE}
+# Dado el promedio y desviacion estándar
+prom <- mean(masc)
+de <- sd(masc)
+# ¿Cuál es la aproximación normal de la probabilidad de que una persona 
+# mida HASTA 180 cm, dado el promedio y la desviación estándar proporcionada?
+pnorm(180,prom,de) # 0.6662659
+ECDF(masc,180) # 0.6539409
+
+# ¿Cuál es la probabilidad de que una persona mida MÁS DE 180 cm dado
+# el promedio y la desviación estándar proporcionada?
+1-pnorm(180,prom,de) # 0.3337341
+
+# Veamos la probabilidad de que un hombre mida entre 150 y 170 cm
+ECDF(masc,170)-ECDF(masc,150) #0.1871921
+
+# Y su aproximación normal
+pnorm(170,prom,de)-pnorm(150,prom,de) # 0.2521713
+```
+
+#### **--- Ejercicio 02**
+
+Calcula las aproximaciones normales de los valores hallados en el ejercicio 1.
+
+```{r eval=FALSE}
+med <- mean(HURRI)
+des <- sd(HURRI)
+# probabilidad de ts_diameter superior a 600 km
+1-ECDF(HURRI,600) # 0.03330069
+1-pnorm(600,med,des) # 0.01089032
+
+# probabilidad de ts_diameter menor igual a 500 km
+ECDF(HURRI,500) # 0.9392752
+pnorm(500,mean(HURRI),sd(HURRI)) # 0.940454
+
+# probabilidad de ts_diameter entre 200 y 400 km
+ECDF(HURRI,400)-ECDF(HURRI,200) # 0.5925563
+pnorm(400,mean(HURRI),sd(HURRI))-pnorm(200,mean(HURRI),sd(HURRI))
+# 0.5363016
+```
+
+## **6.3 Función de Densidad de Probabilidad**
+
+Hemos definido previamente que para las distribuciones continuas la probabilidad de un valor específico no puede ser definido, solamente la probabilidad de pertenecer a un rango. Sin embargo, el concepto de **función de densidad de probabilidad** (le llamaremos *fun.dens*) nos permite obtener, bajo una definición teórica: la **densidad de probabilidad** `f(x)`, un valor calculado que nos aproxime a dicha probabilidad puntual. Esta densidad es definida como:
+
+$$
+F(a)=Pr(x≤a)=\int_∞^af(x)dx
+$$
+
+```{r eval=FALSE}
+# La función que calcula la función de densidad de probabilidad normal es:
+dnorm()
+```
+
+Creemos la *función de densidad de probabilidad* para el conjunto de datos de tallas para el género Masculino `Masc`.
+
+```{r eval=FALSE}
+# Veamos los valores mínimos y máximos
+min(masc)
+max(masc)
+range(masc)
+
+
+# Creemos una nueva data frame df que contenga los datos originales
+# y su respectivos valores de probabilidades usando la aproximación
+# normal con la función dnorm()
+numeros <- seq(min(masc),max(masc),length=100)
+funs.dens <- dnorm(numeros,mean(masc),sd(masc))
+df <- data.frame(numeros,funs.dens)
+
+# Visualiza la df
+View(df)
+
+# Grafíca de la curva dfs
+plot(df, type="l", col="deepskyblue1")
+
+# Así es como luce la fds Normal (modo ggplot2)
+ejemplo <- seq(-4, 4, length = 1000)
+data.frame(ejemplo, f = dnorm(ejemplo)) %>%
+  ggplot(aes(ejemplo, f)) +
+  geom_line(color="deepskyblue1")+
+  geom_area(fill="cadetblue1", alpha=0.5)+
+  xlab("Datos Normales")+
+  ylab("Función de Densidad")+
+  theme_bw()
+
+df %>% ggplot(aes(x=numeros,y=funs.dens))+
+  geom_line(color="deepskyblue1")+
+  geom_area(fill="cadetblue1",alpha=0.5)
+```
+
+### **`rnorm()`:** Números Aleatorios Normales y la Simulación de Monte Carlo
+
+En R existen funciones que permiten obtener números aleatorios (random) en función de una distribución teórica de probabilidades. La función `rnomr()` genera numeros aleatorios para la distribución normal. Sus argumentos son: número de elementos a crear, promedio y desviación estándar del conjunto:
+
+```{r eval=FALSE}
+rnorm(100, mean=0, sd=1)
+```
+
+Veamos un ejemplo de su gran utilidad:
+
+```{r eval=FALSE}
+# ¿Cuál es la talla más alta dentro de Masc?
+max(masc)
+```
+
+La pregunta es: ¿Siempre será así?. Si re-muestreo mi población ¿puede ser que encuentre valores máximos más altos o más bajos?, ¿cuáles serán tales probabilidades?
+
+```{r eval=FALSE}
+# Para resolver esto, creemos una función 
+# para realizar, en base a un subset definido,
+# la simulación de MonteCarlo n veces, y obtener 
+# el valor de talla más alto en cada simulación 
+
+altosMC <- function(subset, n){
+   replicate(n, {
+  datos.simulados <- rnorm(1000, mean(subset), sd(subset))
+  max(datos.simulados)
+  })
+}
+
+# Utilicemos el subset Masc para simular los valor valores
+# de talla más altos 10000 veces. Asignemos el conjunto
+# de datos resultante al nombre personas.altas
+
+personas.altas <- altosMC(masc,10000)
+
+# Veamos la probabilidad de que las personas más altas
+# tengan tallas superiores a 200, 210, 220, 225 cm
+mean(personas.altas>200)
+1-ECDF(personas.altas,200)
+1-ECDF(personas.altas,210)
+1-ECDF(personas.altas,220)
+1-ECDF(personas.altas,220)
+
+```
+
+#### **--- Ejercicio 03**
+
+Aplica lo aprendido hasta el momento. Crea un conjunto de datos aleatorios, llamado `data.e3`, que tenga promedio `20` y desviación estándar `2`. Visualiza el valor mínimo y máximo. Luego, calcula la probabilidad de que un valor tomado aleatoriamente del conjunto sea menor igual a `20`. Finalmente, crea el eCDF con la función `ecdfplot()` del paquete `latticeExtra`.
+
+```{r eval=FALSE}
+# crear un conjunto de datos normales de 300 elementos, 
+# con promedio 20 y desviación estándar 2 
+set.seed(500)
+data.e3 <- rnorm(300,mean = 20,sd=2)
+
+# Veamos los valores mínimos y máximos
+range(data.e3)
+
+# Calcula la probabilidad de que un valor aleatorio sea menor igual a 20
+mean(data.e3<=20) # 0.5366667
+ECDF(data.e3,20) # 0.5366667
+# Grafíca el ECDF con la función de latticeExtra::ecdfplot()
+ecdfplot(data.e3)
+DF <- data.e3
+# Grafíca la función de densidad del conjunto de datos
+range(DF)
+numeros2 <- seq(min(DF), max(DF), length = 100)
+fun.dens2 <- dnorm(numeros2, mean(DF), sd(DF))
+df2 <- data.frame(numeros2, fun.dens2)
+plot(df2, type="l", col="deepskyblue1")
+
+#histograma
+par(mfrow=c(2,1))
+hist(data.e3)
+plot(df2, type="l", col="deepskyblue1")
+dev.off()
+```
+
+**¿Un ECDF sería homólogo a un histograma de frecuencias?**
+
+Rpta/. sí.
+
+# **7. Funciones para Probabilidades en R**
+
+Aquí tienes una lista de funciones asociadas con estos tres puntos que hemos cubierto.
+
+-   Las funciones que comienzan con `p` como `pnorm()` generan datos de la **"función de distribución acumulativa" (CDF)**.
+
+-   Las que comienzan con `d` como `dnorm()` generan datos de la **"función de densidad de probabilidad" (fun.dens)**.
+
+-   Las que comienzan con `r` como `rnorm()` generan **números aleatorios (random)** según la distribución de probabilidades específica:
+
+    -   `norm` para distribución Normal,
+
+    -   `pois` distribución de Poisson,
+
+    -   `binom` distribución Binomial,
+
+    -   `beta` distribución Beta,
+
+    -   `t` distribución T Student,
+
+    -   `gamma` distribución Gamma,
+
+    -   `chisq` distribución Chi-Cuadrado,
+
+    -   `exp` distribución Exponencial.
+
+```{r eval=FALSE}
+# Funciones para generar "función de distribución acumulativa" (CDF)
+pnorm()
+ppois()
+pbinom()
+pbeta()
+pt()
+pgamma()
+pchisq()
+pexp()
+
+# Funciones para generar "función de densidad de probabilidad" (fun.dens)
+dnorm()
+dpois()
+dbinom()
+dbeta()
+dt()
+dgamma()
+dchisq()
+dexp()
+
+# Funciones para generar números aleatorios siguiento una distribución
+rpois()
+rbinom()
+rbeta()
+rt()
+rgamma()
+rchisq()
+rexp()
+```
+
+# 8. Medidas de Tendencia Central
+
+El **análisis exploratorio de datos** debe comenzar por el cálculo o graficación del *eCDF*, pero es muy usual saltarse esto e ir directamente al cálculo de los estadísticos: promedio, mediana, moda. Estos tres son conocidos como medidas de tendencia central.
+
+Usemos las funciones para el cálculo de las medidas de tendencia central:
+
+-   `mean()`
+
+-   `psych::geometric.mean()`
+
+-   `psych::harmonic.mean()`
+
+-   `median()`
+
+-   `moda()`
+
+Para revisar las funciones a usar, creemos los siguientes conjuntos de datos
+
+```{r eval=FALSE}
+# Creemos los conjuntos de datos siguientes
+a <- c(1,2,3,1,2,1,1,1,2,3,2,2,3,2)
+b <- c(1,3,1,2,1,1,1,2,3,2,2,3,250)
+c <- c(1,2,3,1,2,1,1,1,2,3,2,2,3,NA)
+d <- c(TRUE,TRUE,TRUE,FALSE,FALSE)
+e <- c("a","b","a","a","b","a")
+peso <- c(63.96, 71.38, 75.42, 58.27, 72.14)
+altura <- c(1.60,1.69,1.88,1.59, 1.90)
+IMC <- peso / (altura**2)  # Equivalente a elevar al cuadrado con ^2
+```
+
+Calculemos las medidas de tendencia central
+
+```{r eval=FALSE}
+# Media aritmética --------------------------
+# Promedio de conjuntos de datos sin NAs
+mean(a)
+mean(b)
+# Promedio de conjuntos de datos con NAs
+mean(c,na.rm = T)
+
+# El otro uso de mean(): contar valores TRUE
+# y brindar la proporción de verdaderos
+mean(c(T,T,T,T,F,F))
+
+# Media geométrica --------------------------
+library(psych)
+# Comparemos el resultado de mean() con geometric.mean()
+geometric.mean(b)
+mean(b)
+
+# media harmónica
+harmonic.mean(IMC)
+# Mediana --------------------------
+median(b)
+
+# Moda --------------------------
+# Funcion para datos con mas de una moda
+# O para datos no numericos
+moda <- function(data) {
+  unicos <- unique(data)
+  conteo <- tabulate(match(data, unicos))
+  unicos[conteo == max(conteo)]
+}
+
+# Calcular la moda de a,c,e
+moda(e)
+```
+
+#### **--- Ejercicio 04**
+
+Carga la base de datos `Puromycin` de la librería `datasets`. La base contiene información sobre la **velocidad de reacción una enzima** del grupo de estudio que fue tratado (columna `state`valor `treated`). El objetivo es obtener el promedio para cada concentración de Puromicina usada (columna `conc`). Decide qué promedio usarás y realiza el manejo de la base de datos usando `dplyr`.
+
+```{r eval=FALSE}
+data("Puromycin")
+view(Puromycin)
+str(Puromycin)
+
+Puromycin %>% 
+  group_by(conc) %>% 
+  summarise(mediah=harmonic.mean(rate))
+
+Puromycin %>% 
+  group_by(state) %>% 
+  summarise(mediah=harmonic.mean(rate))
+
+Puromycin %>% 
+  group_by(state,conc) %>% 
+  summarise(mediah=harmonic.mean(rate))
+```
+
+# 9. Medidas de Dispersión
+
+Un segundo grupo de mediciones que se deben realizar en el **análisis exploratorio de datos** son aquellas que describen cómo están dispersos los datos.
+
+Usemos las funciones para el cálculo de las medidas de dispersión:
+
+-   `min()`
+
+-   `max()`
+
+-   `range()`
+
+-   `quantile()`
+
+-   `sd()`
+
+-   `var()`
+
+-   `summary()`
+
+Para revisar las funciones a usar, creemos los siguientes conjuntos de datos
+
+```{r eval=FALSE}
+# Creemos los conjuntos de datos siguientes
+f <- rnorm(20, mean=0,sd=1)
+g <- rpois(20, lambda = 2) 
+```
+
+Calculemos las medidas de tendencia central
+
+```{r eval=FALSE}
+# Minimo y Maximo --------------------------
+range(f) # -1.952219  1.441893
+range(g) # 0 5
+# Rango --------------------------
+
+# Desviación estándar y Varianza --------------------------
+sd(f)
+sd(g)
+
+var(f) #sd al cuadrado
+var(g)
+# Calcula el cuantile
+data("iris")
+summary(iris)
+# par mostrar los cuantiles específicos de una variable:
+quantile(iris$Sepal.Length)
+quantile(iris$Petal.Length)
+# para obtener los estimado calculados como SPSS
+quantile(iris$Petal.Length, type = 6)
+# Plot de cuantiles
+hist(iris$Petal.Length)
+boxplot(iris$Petal.Length)
+```
+
+#### **--- Ejercicio 05**
+
+Carga la base de datos `msleep` de la librería `tidyverse`. La base contiene información sobre cuánto duermen los animales mamíferos. Calcula el promedio `geometric.mean()` y la varianza `var()` de la cantidad de horas de sueño que tienen (columna `sleep_total`), horas despierto (columna `awake`) y el peso corporal (columna `bodywt`), tomando en cuenta su dieta como factor de agrupamiento (columna `vore`). Antes de iniciar, asegúrate primero de que en la columna `vore` no existan valores `NA`. Recuerda que `geometric.mean()` pertenece a la librería `psych`.
+
+```{r eval=FALSE}
+data("msleep")
+colSums(is.na(msleep))
+# forma 1
+msleep %>% filter(!is.na(vore)) %>% 
+  group_by(vore) %>% 
+  select(a=awake,b=bodywt,st=sleep_total) %>% 
+  summarise_all(.funs = c(media=mean,var=var))
+
+# forma 2 # la mejor xd
+msleep %>% filter(!is.na(vore)) %>% 
+  group_by(vore) %>% 
+  select(a=awake,b=bodywt, st=sleep_total) %>% 
+  summarise_all(.funs = c(geo=geometric.mean,var=var))
+# forma3
+msleep %>% filter(!is.na(vore)) %>% 
+  group_by(vore) %>% 
+  select(awake,bodywt, sleep_total) %>% 
+  summarise_all(list("mgeo"=harmonic.mean,
+                     varianza=var))
+
+#forma4
+msleep %>% filter(!is.na(vore)) %>% 
+  group_by(vore) %>% 
+  summarise(hm_bw=harmonic.mean(awake),
+            hm_aw=harmonic.mean(awake))
+```
+
+# 10. Conceptos Estadísticos Relevantes
+
+En esta sección nos basaremos en entender cómo el z-score/t-score son importantes en para identificar el margen de error de la muestra, y con ello los intervalos `CI` de confianza del promedio hallado. Lo que el `CI` nos indica es que, con una certeza del 95% asumimos que el promedio real de la población de donde se obtuvieron los datos se encuentra dentro de esas cifras, siendo μ el promedio reportado para la muestra.
+
+## Convertir un conjunto de datos a Z-score
+
+```{r eval=FALSE}
+# Extra la columna sleep_total de la base de datos msleep
+sue <- msleep$sleep_total
+
+# Crea un histograma con ella
+hist(sue)
+# Generemos el plot de la función de densidad de estos datos
+plot(density(sue))
+abline(v=mean(sue))
+view(sue)
+# Generemos los Z-score
+sue_escalado <- scale(sue)
+abline(v=mean(sue_escalado))
+
+# Generemos el plot de la función de densidad de estos datos escalados
+plot(density(sue_escalado))
+```
+
+## arreglar alguna vez xd
+
+```{r eval=FALSE}
+nums <- seq(min(sue_escalado),max(sue_escalado),length=83)
+ddd <- dnorm(nums,mean = 0,sd=1)
+den_sc <- scale(ddd)
+dfff <- data.frame(sue_escalado,ddd)
+
+
+dfff %>% ggplot(aes(x=sue_escalado,y=ddd))+
+  geom_area()
+```
+
+## Intervalo de Confianza y Margen de Error
+
+```{r eval=FALSE}
+# Creemos el mismo conjunto de datos que usamos en el ejercicio 3
+set.seed(500)
+dataset <- rnorm(300, mean=20, sd=4)
+
+# Mide la longitud de dataset
+n <- length(dataset)
+
+# Calcula el promedio
+promedio <- mean(dataset)
+
+# Calcula el error estándar
+# como la división entre la desviación estándar
+# sobre la raíz cuadrada de n
+error.estandar  <- sd(dataset)/sqrt(n)
+
+# Calcula el valor crítico t-score
+# correspondiente a la distribución T Student
+# para el 97.5% de confianza (solo se una una cola),
+# con grados de libertad n-1
+t.critico <- qt(0.975,df=(n-1)) #1.96793
+
+# Calcula el Margen de error de la muestra
+# como t critico por el error estándar
+margen.de.error <- t.critico * error.estandar
+
+# Calcula los intervalos de confianza
+(promedio - margen.de.error) 
+(promedio + margen.de.error) 
+
+# Verifica lo hallado con las funciones CI() y ci()
+library(tidyverse)
+Rmisc::CI(dataset)
+gmodels::ci(dataset)
+```
