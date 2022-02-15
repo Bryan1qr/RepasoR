@@ -42,7 +42,7 @@ getwd()
 
 Activa las librarías a usar
 
-```{r warning=FALSE, message=FALSE}
+```{r eval=FALSE}
 library(tidyverse)
 library(moments)
 library(nortest)
@@ -78,18 +78,28 @@ ratones <- openxlsx::read.xlsx("data_ratones.xlsx")
 # Boxplot:
 boxplot(ratones$peso)
 dnorm(ratones$peso)
-density()
-# Gráfico de Densidad:
 
+# Gráfico de Densidad:
+library(psych)
+library(latticeExtra)
+
+ecdfplot(ratones$peso)
+ggplot(data=ratones,aes(peso))+
+  geom_density(col="#FF6666", alpha=.2, fill="#FF6666")
 
 # Ejecuta un test de normalidad con los datos:
-
+shapiro.test(ratones$peso) # p-value = 0.6993, normal
 
 # Verifica la simetría y curtosis del conjunto de datos:
-
-
+skewness(ratones$peso) #-0.4288947 es ligera asimetría negativa
+# dentro de lo normal
+kurtosis(ratones$peso) # 2.669256, cercano a 3, mesocútica
 # Crea un gráfico Q-Q Plot
-
+qqnorm(ratones$peso)
+qqline(ratones$peso)
+ggplot(data = ratones,aes(sample=peso))+
+  stat_qq_line(col="red", size=1.2)+ stat_qq()+
+  theme_bw()
 ```
 
 **Sección de aprendizaje**\
@@ -99,7 +109,7 @@ Ahora aprenderás a realizar un Q-Q Plot más rápido con la función qqPlot() d
 install.packages("car")
 ```
 
-```{r message=FALSE}
+```{r eval=FALSE}
 # Activa la librería car
 library(car)
 
@@ -112,16 +122,19 @@ qqPlot(ratones$peso)
 ```{r}
 # Test 1: Averigua si el promedio de peso de los ratones evaluados
 # difiere significativamente de 25 gr (prueba de dos colas)
-
+t.test(ratones$peso,mu=25,alternative = "two.sided")
+# p-value = 7.953e-06, son diferentes, poca probabilidad de que
+# la diferencia de medias sea cero
 
 # Test 2: Averigua si el promedio de peso de los ratones evaluados
 # es significativamente menor que 25 gr (prueba de una colas)
-
+t.test(ratones$peso,mu=25,alternative = "less")
+# p-value = 3.977e-06, se acepta la alterna de que es menor a 25
 
 # Test 3: Averigua si el promedio de peso de los ratones evaluados
 # es significativamente mayor que 25 gr (prueba de una colas)
-
-
+t.test(ratones$peso,mu=25,alternative = "greater")
+# no es diferente p-value = 1
 ```
 
 # **Ejercicio 2: Comparaciones de dos muestras**
@@ -140,24 +153,28 @@ Carga el excel `glicolipido.xlsx` y asígnale el nombre `glico`.
 
 Desarrolla lo siguiente:
 
-```{r}
+```{r eval=FALSE}
 # Carga el excel glicolipido.xlsx y asígnale el nombre glico.
 glico <- openxlsx::read.xlsx("glicolipido.xlsx")
 
 # Realiza el boxplot para cada droga
-
+glico %>% group_by(Droga) %>% ggboxplot(x="Droga",y="Glicolipido")
+# a simple vista el promedio de datos de la droga A  consigue 
+# valores significativamente mayores a al droga b
 
 # Test 1: averigua si existen diferencias significativas entre el conjunto de datos de la droga A y el conjunto de la droga B
-
+t.test(Glicolipido~Droga,data = glico, paired=TRUE)
+# p-value = 0.0005777 si es significativamente mayor
 
 # Test 2: averigua si el promedio del grupo A es significativamente mayor al promedio del grupo B
-
+t.test(Glicolipido~Droga,data=glico,paired=TRUE,
+       alternative="greater")
+# p-value = 0.0002888, si es
 
 
 # Test 3: averigua si el promedio del grupo A es significativamente menor al promedio del grupo B.
-
-
-
+t.test(Glicolipido~Droga,data=glico,paired=TRUE,
+       alternative="less") # p-value = 0.9997, no es
 ```
 
 # **Ejercicio 3: Comparaciones de dos muestras**
@@ -172,17 +189,21 @@ Siguiendo con la misma base de datos anterior, verifica si existen diferencias e
 
 Debes realizar tres test de T. Da un vistazo a los datos para decidir cual test debes realizar en base a la independencia de los datos o diferencia de varianza.
 
-```{r}
+```{r eval=FALSE}
 # Test 1: averigua si existen diferencias significativas entre el conjunto sexo Hombre y el conjunto sexo Mujer
-
+t.test(Glicolipido~Sexo,paired=TRUE,alternative="two.sided",
+       data=glico)
+# no hay diferencias,p-value = 0.5214
 
 # Test 2: averigua si el promedio del sexo Hombre es significativamente mayor al promedio del sexo Mujer
-
-
+t.test(Glicolipido~Sexo,paired=TRUE,alternative="greater",
+       data=glico)
+# p-value = 0.7393, no es mayor
 
 # Test 3: averigua si el promedio del sexo Hombre es significativamente menor al promedio del sexo Mujer
-
-
+t.test(Glicolipido~Sexo,paired=TRUE,alternative="less",
+       data=glico)
+# p-value = 0.2607, no es mayor
 ```
 
 # **Ejercicio 4: LM**
@@ -195,57 +216,61 @@ Carga el excel `suelos.xlsx` y asígnale el nombre `suelos`.
 
 Desarrolla lo siguiente:
 
-```{r}
+```{r eval=FALSE}
 # Carga el excel suelos.xlsx y asígnale el nombre suelos.
 suelos <-  openxlsx::read.xlsx("suelos.xlsx")
 
 # Búsqueda de outliers con boxplot
-
+ggboxplot(y="conc.N",data=suelos)
 
 
 # Eliminación de outliers
-
-
+out <- identify_outliers(data=suelos,conc.N)
+suelos2 <- anti_join(suelos,out)
 
 # Verificando que suelos ya no contiene outliers
-
+identify_outliers(data=suelos2,conc.N)
+ggboxplot(y="conc.N",data=suelos2)
 
 # Verifica linearidad de las variables respuesta y explicativa
-
+ggscatter(x="colonias",y="conc.N",data = suelos2,add = "reg.line")
 
 
 # Realiza el modelo
-
+modelo1 <- lm(conc.N~colonias,data=suelos2)
 
 # Verifica las asunciones teóricas restantes
 par(mfrow=c(2,2))
-plot(modelo)
+plot(modelo1)
 dev.off() #usa siempre dev.off() luego de par() para evitar que siga activo
-
+library(performance)
+check_model()
 # Comprueba la normalidad de los residuales, obtenidos con la función resid()
-
-
-
-
+residuales <- resid(modelo1)
+modelo1$residuals
+shapiro.test(residuales) # p-value = 0.2133
+ad.test(residuales) # p-value = 0.217
 # Obtén los resultados del modelo e interprétalo
-
-
+summary(modelo1)
+# por cada unidad de aumento de las colonias, la concentración 
+# de nitrógeno aumenta en 0.05 sobre el valor base de 8.43
+# me faltó hacer asimetría, curtosis y el plot de densidad
 ```
 
 **Interpreta los resultados de la regresión y responde:**
 
 **P1:** *¿El modelo fue significativo?*
 
-**Rpta/.**
+**Rpta/. Si**
 
 **\
 P2:** *¿Cuánto aumenta el nitrógeno en relación a las colonias de bacterias nitrificantes contabilizadas en la muestra?*
 
-**Rpta/.**
+**Rpta/. 0.047**
 
 **P3:** *¿Cuánta varianza de la variable respuesta es explicada por la variable respuesta?*
 
-**Rpta/.**
+**Rpta/. un 60.99% de la varianza es explicada por la variable respuesta**
 
 ### **Parte 2: Modelos lineales múltiples (aditivos)**
 
@@ -255,19 +280,26 @@ Considera incluir en el modelo dos nuevas variables explicativas: un indice de d
 
 2.  Si hay variables que no sean significativas (ver columna `Pr(>|t|)` en el resumen de `summary()`).
 
-```{r}
+```{r eval=FALSE}
+modelo2 <- lm(conc.N~colonias+plant.simbio+div.esp.descomp
+              ,data = suelos2)
 
+summary(modelo2)
+# plant.simbio si, div.esp.descomp no
 ```
 
 De haber detectado alguna variable explicativa no significativa, esta debe ser eliminada del modelo ya que le no aportan nada. Por el contrario, el modelo se beneficia al eliminar variables no significativas. Crea la variable `modelo3` que contenga el nuevo modelo mejorado.
 
 ```{r}
-
+modelo3 <- lm(conc.N~colonias+plant.simbio,data=suelos2)
+# la forma del profe
+modelo3 <- lm(conc.N~.,data=sinOutliers[,-4])
+summary(modelo3)
 ```
 
 **P4:** *¿El modelo muestra alguna mejora respecto a la cantidad de varianza explicada por las variables independientes (explicativas)? (comparar R cuadrados ajustados de los modelos 2 y 3)*
 
-**Rpta/.**
+**Rpta/.** Adjusted R-squared: 0.8956 ,Adjusted R-squared: 0.8962, si hay mejora!
 
 ### **Parte 3: Interpretación de coeficientes en modelos simples o múltiples aditivos**
 
@@ -311,8 +343,11 @@ Este tipo de modelos se desarrollan cuando uno quiere responder preguntas del ti
 
 Ahora, verifica si es que, adicionalmente a los efectos principales individuales de las variables, existe algún efecto significativo de la interacción de las variables respuesta `colonias` y `plant.simbio` que explique algo de la varianza restante de la variable respuesta `conc.N`. Para indicar interacciones debes colocar un símbolo de multiplicación entre las variables que deseas que interactúen en el modelo.
 
-```{r}
-
+```{r eval=FALSE}
+modelo4 <- lm(conc.N~colonias+plant.simbio+
+                colonias*plant.simbio,data=suelos2)
+summary(modelo4)
+# si,todos son significativos Adjusted R-squared:  0.9673 
 ```
 
 ### **Parte 5: Interpretación de coeficientes en modelos lineales múltiples (interacción)**
@@ -355,18 +390,20 @@ Se realizaron mediciones de la longitud total coporal (columna `long_total`) de 
 
 ```{r eval=FALSE}
 # Carga el excel sp.xlsx y asígnale el nombre sp
-sp <- openxlsx::read.xlsx("~\\Proyectos_R\\2021\\R Data Science\\C2-S2\\sp.xlsx")
+sp <- openxlsx::read.xlsx("sp.xlsx")
 
 # Elimina outliers
-
-
+sp %>% group_by(ssp) %>% identify_outliers(long_total)
+# no tiene outliera
 
 
 # Con la base de datos filtrada, si es que fue necesario,
 # analiza qué anova realizarás. Comprueba si se debe 
 # realizar un anova balanceado o no balanceado.
-
-
+table(sp$ssp) # balanceado
+# anova de una via con 3 niveles
+sppp <- aov(lm(long_total~ssp,data=sp))
+# 4.32e-16
 
 # Realiza el modelo lineal y asignalo con le nombre "modelo"
 
@@ -375,95 +412,111 @@ sp <- openxlsx::read.xlsx("~\\Proyectos_R\\2021\\R Data Science\\C2-S2\\sp.xlsx"
 
 
 # Verifica la normalidad de los residuales
+shapiro.test(sppp$residuals) # p-value = 0.6398
 
+xd <- augment(sppp) %>% group_by(ssp) %>% 
+  shapiro_test(.resid)
+
+xdd <- augment(sppp)
 
 # Verifica la homogeneidad de varianzas
-
+bartlett.test(.resid~ssp,data = xdd)
+# p-value = 0.4219, es homogéneo
+bartlett.test(long_total~ssp,data = sp)
+# p-value = 0.4219, es homogéneo, sale igual xd
 
 # Realiza el Test posthoc respectivo
-
-
+# los siguientes son equivalentes
+tukey_hsd(sppp)
+tukey_hsd(lm(long_total~ssp,data=sp))
 ```
 
 # **Ejercicio 6: Balancear un ANOVA (una vía)**
 
-Muchas veces tenemos N muestral suficiente como para uniformizar el ANOVA. Esta decisión, puede explotar lo mejor del ANOVA balanceado frente a uno desbalanceado. En general, se asume que los ANOVA balanceados tienen un mayor poder estadístico, menor susceptibilidad ante ligeras desviaciones del supuesto de homocedasticidad (igualdad) de varianzas entre grupos, que lo ANOVA no balanceados. Así que este procedimiento te ayudará ante aquellas situaciones en las que necesites balancear.
+Muchas veces tenemos N muestral suficiente como para uniformizar el ANOVA. Esta decisión, puede explotar lo mejor del ANOVA balanceado frente a uno desbalanceado. En general, se asume que los ANOVA balanceados tienen un mayor poder estadístico, menor susceptibilidad ante ligeras desviaciones del supuesto de homocedasticidad (igualdad) de varianzas entre grupos, que el ANOVA no balanceados. Así que este procedimiento te ayudará ante aquellas situaciones en las que necesites balancear.
 
 En el siguiente ejemplo verificaremos si existe diferencias significativas entre los niveles de la variable explicativa `tratamiento`, respecto a la variable respuesta `y`. Los niveles de la variable explicativa son 3: Ctrl, trat1 y trat2. Esta base de datos es desbalanceada. Verifica la presencia de outliers y elimínalos. Posteriormente, trata de balancear el análisis, eliminando aleatoriamente filas dentro de los niveles que lo requieran para que todos tengan la misma cantidad de observaciones. Continua verificando los supuestos teóricos del ANOVA balanceado y obtén los resultados. Si el ejercicio lo requiere, realiza un test post hoc para identificar qué nivel de `tratamiento` es el que genera un mayor incremento en el promedio estimado de la variable `y`.
 
 Carga el excel `ejercicio_grupos.xlsx`para comenzar el ejercicio.
 
-```{r}
+```{r eval=FALSE}
 # Carga el excel ejercicio_grupos.xlsx y asígnale el nombre grupos
 grupos <- openxlsx::read.xlsx("ejercicio_grupos.xlsx")
-
+grupos <- grupos %>% mutate_if(is.character,as.factor)
 # Genera un boxplot para verificar si hay outliers 
 # en la variable respuesta y dentro de cada nivel 
 # de la variable tratamiento.
-
+grupos %>% group_by(tratamiento) %>% 
+  ggboxplot(x="tratamiento","y")
 
 # Obten los outliers para cada grupo
 # con identify_outliers()
-
+atip <- grupos %>% group_by(tratamiento) %>% 
+  identify_outliers(y)
 
 
 
 # A2: Elimina los outliers y asigna la tabla limpia con el
 # nombre gruposLimpio
-
+gruposLimpio <- anti_join(grupos,atip)
 
 # Verifica si los niveles de tratamiento están balanceados
-
-
+gruposLimpio %>% group_by(tratamiento) %>% 
+  ggboxplot(x="tratamiento","y")
 ```
 
 Balancea el estudio:
 
-```{r}
+```{r eval=FALSE}
 # Selecciona de manera aleatoria las observaciones (filas)
 # que debes eliminar de gruposLimpio para cada nivel de 
 # tratamiento y así balancear el ANOVA
+table(gruposLimpio$tratamiento) #2 de control, 1 uno del trat 2
 set.seed(12345)
-
-
+control <- gruposLimpio %>% filter(tratamiento=="Ctrl")
+%>% sample_n(3)
+tratamiento <- gruposLimpio %>% filter(tratamiento=="trat2")
+%>% sample_n(1)
 
 # Asigna la base de datos balanceada con el nombre gruposFinal
-
+gruposFinal <- anti_join(gruposLimpio,control) %>% 
+  anti_join(.,tratamiento)
 
 # Verifica si realmente está balanceado el ANOVA ahora
-
+table(gruposFinal$tratamiento)
 
 ```
 
 Verifica los supuestos teóricos restantes
 
-```{r}
+```{r eval=FALSE}
 # Realiza el modelamiento lineal
-
+modelo <- lm(data=gruposFinal,y~tratamiento)
 
 # A3: Verifica la normalidad de los residuales
-
-
+shapiro.test(modelo$residuals)
+ad.test(modelo$residuals)
+ad.test(resid(modelo))
 
 # A4: Verifica la homogeneidad de varianzas
-
-
+bartlett.test(data=gruposFinal,y~tratamiento)
+# p-value = 0.3544
 ```
 
 Realiza el ANOVA final y su respectivo post hoc si es necesario
 
-```{r}
+```{r eval=FALSE}
 # Modelo final 
-
-
+modeloF <- aov(modelo)
+# p= 0.00385 
 # Post Hoc
-
+TukeyHSD(modeloF)
 
 ```
 
 **P1:** *¿Existen diferencias significativas entre los grupos?*
 
-**Rpta/.**
+**Rpta/. si**
 
 **P2:** *¿Cuál es el tratamiento que generó un mayor incremento del promedio de la variable y?*
 
@@ -475,41 +528,39 @@ Conocer el poder de un análisis nos puede ayudar a decidir si podemos increment
 
 Desarrolla lo siguiente:
 
-```{r}
+```{r eval=FALSE}
 # Calcula el tamaño del efecto del ANOVA balanceado
 # qaue desarrollaste anteriormente (redondea el valor a dos decimales)
-
+effectsize::eta_squared(modeloF) # eta2=0.12
 
 # Calcula el poder del análisis de dicho ANOVA
-
-
+pwr.anova.test(n=29,k=3,sig.level = 0.05,f=0.12)
+# power = 0.1515382
 # Identifica cuál sería el n muestral necesario para obtener
 # un poder de análisis de 80%
-
-
+pwr.anova.test(power = 0.8,k=3,sig.level = 0.05,f=0.12)
 ```
 
 # **Ejercicio 8: ANOVA No Balanceado (una vía)**
 
 Trabajemos el ANOVA no balanceado del **Ejercicio 6** y veamos qué diferencias encontramos con los resultados del ANOVA balanceado. Como aquí no necesitamos utilizar los niveles de `tratamiento` con el mismo n muestral, usaremos la variable creada en el ambiente de R llamada `gruposLimpio`.
 
-```{r}
+```{r eval=FALSE}
 # Realiza el modelamiento lineal
-
+grup_desv <- lm(data=grupos,y~tratamiento)
 
 # A3: Verifica la normalidad de los residuales
-
+shapiro.test(grup_desv$residuals) # p-value = 0.1179
 
 
 # A4: Verifica la homogeneidad de varianzas
-
-
+bartlett.test(data=grupos,y~tratamiento)
+# p-value = 0.08878
 # Modelo final 
-
+an_fin <- aov(y~tratamiento,data=grupos)
 
 # Post Hoc
-
-
+TukeyHSD(an_fin)
 ```
 
 En estos casos de anovas de una vía, balanceados o no, el algoritmo de la función `anova()` es lo suficientemente robusto para mantener los resultados entre ambos. Esto no es igual para ANOVAs de dos vías.
