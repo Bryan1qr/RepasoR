@@ -1,0 +1,1893 @@
+---
+title: "Gráficos Avanzados con ggplot2"
+Author: "Bryan Quispe"
+output: bookdown::epub_book
+editor_options:
+  chunk_output_type: console
+---
+
+Instalar librerías nuevas
+
+```{r eval=FALSE}
+install.packages("hexbin")
+install.packages("viridis")
+install.packages("ggthemes")
+install.packages("ggrepel")
+install.packages("ggThemeAssist")
+
+#install.packages("datarium")
+#install.packages("car")
+#install.packages("effsize")
+
+```
+
+Librerías a usar
+
+```{r warning=FALSE, message=FALSE}
+library(tidyverse)
+library(gganimate)
+library(magick)
+library(gapminder)
+library(patchwork)
+library(ggstatsplot)
+library(tidyverse)
+library(ggrepel)
+library(ggpubr)
+
+
+# Ejecutar este código para tener un tema predeterminado todos en clase
+theme_set(theme_bw())
+```
+
+# **Primeros pasos con ggplot2**
+
+La "**gg**" de ggplot deriva de gramática de gráficos. Es uno de las estructuras de lenguaje de programación más completas para generar gráficos, permitiéndote modificar cada detalle de un gráfico. Poder comunicar bien implica sintetizar la información, y presentarla gráficamente de manera adecuada es una habilidad necesaria en la investigación científica. En este R Notebook aprenderás a usar ggplot2 para sacarle el máximo provecho a la visualización de información en tus investigaciones.
+
+Si solo colocas la base de datos dentro de `ggplot()`, entonces solo se creará un lienzo vacío.
+
+```{r eval=FALSE}
+# Carga la base de datos anthropometry.xlsx y asignale el nombre antropo
+antropo <- openxlsx::read.xlsx("anthropometry.xlsx")
+antropo <- openxlsx::read.xlsx(choose.files())
+
+antropo2 <- na.omit(antropo)
+
+# Coloquemos la base de datos dentro de ggplot
+# para crear el lienzo vacío
+antropo2 %>% ggplot()
+```
+
+Ahora, comencemos usando `aes()` para definir con qué columnas de la base de datos vamos a trabajar.
+
+```{r eval=FALSE}
+# Creemos el lienzo con ejes X e Y definidos
+# con las variables "tamaño de pie" y "altura"
+
+antropo2 %>% ggplot(aes(x=foot_length,y=height))
+```
+
+# **Geoms: X continua**
+
+-   Gráfico de Área
+
+-   Gráfico de Polígono de Frecuencia
+
+-   Gráfico de Densidades de Probabilidades
+
+-   Histograma de Frecuencia
+
+-   Q-Q Plot
+
+Usemos la base de datos `antropo` para continuar trabajando con la variable `x=foot_length`.
+
+Las bases de datos sin NAs precarga más rápido, pues le ahorras trabajo a R.
+
+```{r eval=FALSE}
+# Gráfico de Área de tipo conteo(red, coral)
+antropo2 %>% ggplot(aes(x=foot_length))+
+  geom_area(stat = "count",fill="aquamarine3",
+                    color="skyblue",alpha=0.3)
+
+# stat= c("bin"=union de puntos,de histograma
+#          "count"=para conteos,
+
+
+# Gráfico área de tipo bin
+antropo2 %>% ggplot(aes(x=foot_length))+
+  geom_area(stat = "bin",fill="seagreen2",color="blue",
+            lty=3,#  buscar en google
+            lwd=1.5) # grosor de linea
+
+# Gráfico de Polígono de frecuencia (blue)
+# por defecto genera como area de tipo bin, sin relleno
+antropo2 %>% ggplot(aes(x=foot_length))+
+  geom_freqpoly(color="blue")
+
+# Gráfico de Densidad de Probabilidades (red, coral)
+antropo2 %>% 
+  ggplot(aes(x=foot_length))+
+  geom_density(fill="coral",alpha=0.7,color="darkblue",
+               lty=4,lwd=1.5)
+
+
+# Histograma de Frecuencia (darkgreen, lightgreen)
+antropo2 %>% ggplot(aes(x=foot_length))+
+  geom_histogram(fill="lightgreen",color="darkgreen",
+                 lty=3,lwd=1,
+                 bins = 30,# cantidad de barras
+                 binwidth = 20) # ancho de barra
+```
+
+![Linetypes](images/brave_suH6Cvji6q.png)
+
+**Ya que finalmente trabajamos con geométricas, hay dos cosas más debes saber:**
+
+1.  También puedes colocar `aes()` dentro de una geométrica. Usemos el aes() ya creado en la instrucción.
+
+```{r eval=FALSE}
+# Coloca aes() dentro de geom_histogram()
+# aes(x=foot_length, fill=gender, color=gender)
+
+antropo2 %>% 
+  ggplot(aes(x=foot_length, fill=gender, color=gender))+
+  geom_histogram(binwidth=10, alpha=0.5)
+
+# Coloca parcialmente aes() dentro de geom_histogram()
+antropo2 %>% 
+  ggplot()+
+  geom_histogram(aes(x=foot_length, fill=gender,
+                     color=gender)
+                 ,binwidth=10, alpha=0.5)+
+  geom_freqpoly(color="blue",
+                aes(x=foot_length,group=gender),binwidth=10)
+
+# Cuando se pone el aes() dentro de la geométrica, a veces 
+# es útil colocar la data dentro de la geométrica también
+ggplot()+
+  geom_histogram(data=antropo2,binwidth=5, alpha=0.5,
+                 aes(x=foot_length, fill=gender, color=gender))
+```
+
+2.  Puedes guardar un gráfico en el ambiente como si fuera un objeto más.
+
+```{r eval=FALSE}
+# Crea el objeto A conteniendo al lienzo vacío de ggplot
+A <- antropo2 %>% ggplot(aes(x=foot_length))
+A
+
+# Adiciona a A un geom_histogram()
+A + geom_histogram(aes(fill=gender),color="gray90")
+
+# Adiciona a A un geom_density()
+A + geom_density(color="khaki",fill="seagreen3",alpha=0.23)
+
+# ver la estructura del gráfico guardado
+ggplot_build(A)
+```
+
+**El caso especial de los gráficos Cuantil-Cuantil (Q-Q Plots):**
+
+> **Nota:** ggplot solo acepta como argumento `data =` a una base de datos de estructura `data.frame` o `tibble`, no listas, no vectores, no matrices.
+
+```{r eval=FALSE}
+# Qué sucede si le adicionamos a A los geom para Q-Q Plots
+A + geom_qq() + geom_qq_line()# no sale nada xd
+
+# Usando el método de GeoRGB:
+ggplot(antropo2,aes(sample=foot_length))+ 
+  stat_qq_line(lwd=1,color="gray70")+
+  stat_qq(color="red",size=1.5,alpha=0.2)
+
+# extrae los residuales y grafíca el Q-Q Plot de los residuales
+# para ver si cumplen con el criterio de normalidad.
+mod1 <- lm(foot_length~height,data=antropo2)
+XYZ <- broom::augment(mod1)
+
+# Genera el Q-Q Plot
+# ¿Ven normalidad?
+# en los residurales
+# La siguente gráfica es mejor que el 2do
+ggplot(XYZ,aes(sample=.resid)) + 
+  stat_qq_line(lwd=1,color="gray70")+stat_qq()
+
+ggplot(XYZ,aes(sample=.resid))+ 
+  geom_qq(color="red",size=1.5,alpha=0.2) + 
+  geom_qq_line(lwd=1,color="gray70")
+
+
+# Recomendación: No se fien de los test, vean las gráficas
+nortest::ad.test(resid(mod1))
+moments::kurtosis(resid(mod1))
+moments::skewness(resid(mod1))
+performance::check_model(mod1)
+```
+
+# **Geoms: X discreta**
+
+-   Gráfico de barras
+
+Como variable discreta tomaremos aquella que presenta niveles, aquellas que podemos considerar de tipo factor (ya sea binario, o de más niveles), y aquellas variables de conteo.
+
+**A partir de Tablas de Frecuencia:**
+
+```{r eval=FALSE}
+# Carga la base de datos msleep y eliminemos las filas con valores perdidos
+data("msleep")
+msleep <- na.omit(msleep)
+msleep2 <- msleep %>% count(vore, conservation)
+
+# children es una tabla de frecuencias
+# crea una gráfica de barras con ella
+# por defecto está count
+msleep %>% ggplot()+
+  geom_bar(aes(x=vore,fill=conservation,
+               color=conservation),
+           stat = "count")
+
+msleep2 %>% ggplot()+
+  geom_bar(aes(x=vore,y=n),stat = "identity",
+           fill="lightskyblue3")
+```
+
+**A partir de una Tabla corriente (R cuenta las observaciones de un nivel por nosotros):**
+
+```{r eval=FALSE}
+# Crea un gráfico de barras para la variable gender
+# filtrando las observaciones con talla mayor a 170 cm
+# en la base de datos antropo 
+antropo170 <- antropo %>% filter(height>170)
+antropo170 %>% ggplot(aes(x=gender,fill=gender))+
+  geom_bar()
+
+antropo %>% filter(height>170) %>% ggplot()+
+  geom_bar(aes(x=gender,fill=gender))
+
+antropo %>% filter(height>170) %>% count(gender) %>% 
+  ggplot(aes(x=gender,y=n,fill=gender))+
+  geom_bar(stat="identity")
+```
+
+Algunas veces lidiaremos con la necesidad de **convertir en una variable categórica una que inicialmente es continua (mediciones) o discreta (conteos)**. Para ello se usa las funciones de dplyr y la función condicional `ifelse()`:
+
+```{r eval=FALSE}
+# Crear un gráfico de barras con geom_bar para columna age
+antropo %>% 
+  ggplot(aes(x=age))+
+  geom_bar()
+
+# Crear una columna llamada age2 para corregir este 
+antropo$age2 <- cut(antropo$age,
+                    breaks = c(-Inf,10,15,Inf),
+                    labels = c("2 a 10",
+                               "10 a 15",
+                               "15 a 20"))
+antropo %>% 
+  ggplot(aes(x=age2)) + geom_bar(aes(fill=age2))
+
+table(antropo$age2)
+
+B <- antropo %>% ggplot(aes(x=gender,fill=age2))
+B + geom_bar()
+```
+
+Trabajaremos con las posiciones de las barras:
+
+-   stack = barras apiladas.
+
+-   dodge = barras dispuestas lateralmente.
+
+-   fill = barras convertidas a porcentaje (o proporción en realidad).
+
+```{r eval=FALSE}
+# Cambia las posiciones de las barras
+B + geom_bar(position = "stack") #apiladas
+B + geom_bar(position="dodge")# paralelas
+B + geom_bar(position="fill")# apiladas porcentuales
+```
+
+# **Geoms: X continua, Y continua**
+
+-   Gráfico de Dispersión de Puntos (Scatterplot)
+
+-   Gráfico de etiquetas reemplazando los puntos
+
+-   Gráfico de texto reemplazando los puntos
+
+-   Gráfico de Dispersión de Puntos con método Jitter
+
+-   Gráfico de calor hexagonal
+
+-   Gráfico de Contornos de Densidad de Puntos (y variaciones)
+
+**Este grupo encierra a los típicos gráficos de dispersión de puntos.**
+
+```{r eval=FALSE}
+# Crea un gráfico de dispersión de puntos (Scatterplot)
+# con la base de datos msleep
+data("msleep")
+names(msleep)
+s <- msleep %>% ggplot(aes(x=sleep_total,y=sleep_rem))
+
+# Reemplacemos los puntos por etiquetas
+s+geom_label(aes(label=vore),fill="lemonchiffon")
+s+geom_label(aes(label=vore,fill=vore),alpha=0.25)
+
+# agregando capa
+s+geom_label(aes(label=vore,fill=vore),alpha=0.25,
+             color="gold4")+
+  geom_point(color="red")
+
+# Reemplacemos los puntos por texto
+s+geom_text(aes(label=vore))+
+  geom_point(color="red")
+
+# Usemos ggrepel para menorar el gráfico
+s+geom_text_repel(aes(label=vore))+
+  geom_point(color="red")
+
+s+geom_label_repel(aes(label=vore,fill=vore))+
+  geom_point(color="red")
+```
+
+**Jittering un conjunto de puntos,** significa dispersar aleatoriamente los puntos para que se vea mejor la nube de puntos. Su uso se recomienda cuando se quiere evitar que el "patrón" extraño que aparece en los puntos distraiga al observador de lo que la tendencia de la nube quiere comunicar. En otros casos, cuando los puntos están superpuestos y se necesita observar todos los puntos (Puntos sobre boxplot, por ejemplo).
+
+Trabajaremos con la base de datos `storms`.
+
+```{r eval=FALSE}
+# Generar gráfico de dispersión de puntos
+# con la base de datos storms
+data("storms")
+names(storms)
+
+storms %>% ggplot(aes(x=wind,y=pressure))+
+  geom_point(color="rosybrown3",alpha=0.25,size=3)
+
+storms %>% ggplot(aes(x=wind,y=pressure))+
+  geom_jitter(width = 6,height = 6,aes(color=category))
+```
+
+Trabajaremos con la base de datos `antropo`.
+
+```{r eval=FALSE}
+# Gráfico de calor hexagonal
+DENS <- antropo %>% 
+  ggplot(aes(x=foot_length, y=height))
+
+DENS + geom_hex()
+
+# Gráfico de contornos de densidad de puntos
+DENS + geom_density2d()
+
+# Gráfico de contornos de densidad de puntos
+# con la generación de poligonos de densidad (color="yellow")
+DENS + stat_density_2d(aes(fill=..level..), geom="polygon",
+                       color="yellow")
+
+# Gráfico de rásters de densidad de dispersión de puntos. Adiciona:
+# scale_fill_distiller(palette="Spectral", direction=-1)
+DENS + stat_density_2d(aes(fill=..density..), geom="raster",
+                       contour = FALSE)+
+  scale_fill_distiller(palette="Spectral", direction=-1)
+
+```
+
+# **Geoms: X discreta, Y continua**
+
+-   Boxplot
+
+-   Barras de error
+
+-   Gráfico de Violín
+
+Apliquemos estas geométricas a la base de datos CO2
+
+```{r eval=FALSE}
+# Carga la base de datos masslost
+mass <- openxlsx::read.xlsx("masslost.xlsx")
+mass <- openxlsx::read.xlsx(choose.files())
+
+# Genera un boxplot para la variable masslost 
+# usando como factor de separación a variety
+# stat_boxplot(geom = 'errorbar', width=0.2) para poner los "bigotes"
+mass %>% ggplot()+
+  stat_boxplot(geom="errorbar",width=0.2,
+               aes(x=variety,y=masslost))+
+  geom_boxplot(aes(x=variety,y=masslost,
+                   fill=variety),color="black")
+
+# Ahora usa el factor de separación profile y rellenado por variety
+mass %>% ggplot()+
+  geom_boxplot(aes(x=profile,y=masslost,fill=variety))
+
+# Crea un gráfico de violín para la variable uptake usando como 
+# factor de separación a Type (#1f77b4, #5fcbf5, black, #5fcbf5)
+mass %>% ggplot()+
+  geom_violin(aes(x=profile,y=masslost),color="gold4",
+              fill="whitesmoke",width=0.6)+
+  geom_boxplot(aes(x=profile,y=masslost),width=0.2,
+               fill="whitesmoke",color="purple")+
+  geom_jitter(aes(x=profile,y=masslost),
+              width = 0.06,alpha=0.7,color="purple")
+```
+
+![boxplots con violines y jittering](images/rstudio_WpHIA55rWD.png)
+
+# **Geoms: X discreta, Y discreta**
+
+-   Gráfico de conteos
+
+Trabajemos con la base de datos midwest de la librería ggplot2.
+
+```{r eval=FALSE}
+# Cargas la base de datos midwest
+data("midwest")
+View(midwest)
+
+# Veamos qué sucede con geom_point() y
+# geom_jitter() para visualizar las columnas
+# cty y class
+midwest %>% 
+  ggplot(aes(x=category, y=state, color=state)) +
+  geom_point()
+
+midwest %>% 
+  ggplot(aes(x=category, y=state, color=state)) +
+  geom_jitter()
+
+
+# Crea el gráfico de conteos
+GRAF <- midwest %>% 
+  ggplot()+
+  geom_count(aes(x=category, y=state, color=state))+
+  scale_size_area(max_size = 10)
+
+info <- ggplot_build(GRAF)$data[[1]]
+
+GRAF+geom_text(data=info,aes(label=n,x=x,y=y),
+               vjust=-2,
+               hjust=-0.2)
+
+GRAF+geom_text_repel(data=info,aes(label=n,x=x,y=y),
+               vjust=-0.7,
+               hjust=-3)
+```
+
+# **Geoms: tres variables**
+
+```{r eval=FALSE}
+# Carga la base de datos BD2.xlsx 
+# scale_fill_gradient(low = "white", high = "orangered") para dar color
+bd <- openxlsx::read.xlsx("BD2.xlsx")
+bd <- openxlsx::read.xlsx(choose.files())
+
+bd %>% ggplot()+
+  geom_tile(aes(x=factor(Var2),y=Var1,fill=score))+
+  scale_fill_gradient(low = "white", high = "darkcyan")
+
+bd %>% ggplot()+
+  geom_tile(aes(x=factor(Var2),y=Var1,fill=score))+
+  scale_fill_gradient2(low = "blue", 
+                       high = "red",
+                       midpoint = 15,
+                       mid = "whitesmoke")
+```
+
+# **Líneas y regresiones**
+
+Usaremos la base de datos `Datos_bio.xlsx` para graficar las relaciones entre las columnas `humedad1` y `humedad2`.
+
+```{r eval=FALSE}
+# Crea el objeto P que contenga un gráfico de dispersión
+# de puntos entre las variables humedad1 y humedad2
+bio <- openxlsx::read.xlsx("Datos_bio.xlsx")
+P <- bio %>% 
+  ggplot(aes(x=carbono, y=humedad1))+
+  scale_x_continuous(breaks=seq(0,380000,50000))+
+  geom_point()
+
+# Adiciona a P una regresión lineal simple
+P + geom_smooth(method="lm" ,se=TRUE)
+
+# Adiciona a P una regresión lineal cuadrática
+P + geom_smooth(method = "lm",formula=y~x+poly(x,2),se=F)
+
+# Adiciona a P una regresión lineal cúbica
+P + geom_smooth(method = "lm",formula = y~x+poly(x,3))
+
+# Adiciona a P una regresión generalizada aditiva (no lineal)
+P + geom_smooth(method = "gam",fill="coral")
+P+ geom_smooth(method = "loess",fill="coral")
+
+# Generar una regresión generalizada lineal (GLM) binomial
+# Pero se necesita una gráfica binaria de dispersión de puntos.
+# Créala con el enfrentamiento de biomasa vs bin
+
+bio %>% ggplot(aes(x=biomasa,y=bin))+
+  geom_point(color="darkcyan",size=3,alpha=0.4)+
+  geom_smooth(method = "glm",
+              method.args=list(family=binomial),
+              fill="gray80",color="red")+
+  scale_y_continuous(breaks = seq(0,1,1))
+
+# Adicionar lineas en mis gráficos
+# Vertical (80000)
+P + geom_vline(xintercept=80000,color="red",lwd=0.8)
+
+# Horizontal (600)
+P + geom_hline(yintercept = 600,color="darkcyan",lwd=0.9)+
+  geom_vline(xintercept = 80000,color="deepskyblue",lwd=0.88)
+
+P + geom_vline(xintercept = 10000,lty=4,lwd=1.2,
+               color="hotpink2")
+
+# con etiqueta
+# pero siempre será mejor no poner una db principal
+P + geom_vline(xintercept = 80000,color="red")+
+  geom_text(data=data.frame(x=100000,y=400,lab="humbral"),
+             aes(x=x,y=y,label=lab))
+
+# Regresión (Abline)
+coeff <- lm(humedad1~carbono,data=bio) %>% coef()
+# intercepto = 4.433109e+02 , carbono = 1.858881e-03
+
+P + geom_abline(intercept =coeff[1],slope = coeff[2])
+P + geom_abline(intercept = 4.433109e+02,slope = 1.858881e-03)
+
+# Segmento (p1: 385534.359, 803.14  p2: 1612.323, 255.85)
+P + geom_segment(x=385534.359,y=803.14,xend=1612.323,yend=255.85)
+
+# Curva
+P + geom_curve(x=385534.359,y=803.14,xend=1612.323,yend=255.85,
+               curvature = 0.25) # curva de 0 a 1
+
+
+# Flecha
+P  + geom_curve(x=385534.359,y=803.14,xend=1612.323,yend=255.85,
+               curvature = -0.25, 
+               arrow= arrow(length=unit(0.8,"cm")),color="red",
+               lwd=0.8)
+```
+
+# **Modificar escalas continuas (ejes)**
+
+```{r eval=FALSE}
+# Cambiar el sentido del eje x
+P
+P+scale_x_reverse()
+
+# Cambiar el sentido del eje y
+P+scale_y_reverse()
+
+# Transformar escalas cuando hay observaciones muy dispares
+bio %>% ggplot(aes(x=especies, y=DBH))+
+  geom_bar(stat="identity")+
+  scale_y_log10()
+
+bio %>% ggplot(aes(x=especies, y=DBH))+
+  geom_bar(stat="identity")+
+  scale_y_sqrt()
+
+# Definir limites en los ejes
+P + xlim(0,10000)+ ylim(200,600)
+P + ylim(2000,500)
+
+# Usar scale_x_continuous() y scale_y_continuous()
+P + scale_y_continuous(limits=c(250,800),
+                       breaks = seq(100,1000,100),
+                       position = "right",
+                       expand = c(0,0,0,0))+ # espacio entre eje
+  scale_x_continuous(breaks = seq(0,450000,30000))
+
+bio %>% ggplot(aes(x=especies, y=DBH))+
+  geom_bar(stat="identity")+
+  scale_y_continuous(expand = c(0,0,0.02,0))# c(y1,x1,y2,x2)
+
+
+
+# Usar labels = como argumento para coercionar las etiquetas
+# a dólar, porcentaje, valores absolutos
+P +  scale_x_continuous(labels = scales::comma)
+P + scale_x_continuous(labels = scales::percent) #por 100
+P + scale_x_continuous(labels = scales::label_percent(scale=1)) #%
+P+scale_x_continuous(labels = scales::dollar)
+P+scale_x_continuous(labels = scales::scientific)
+P+scale_x_continuous(labels = abs) # valor absoluto
+
+# Para 2 bases de datos con 2 ejes usamos sec.axis
+
+ggplot()+
+  geom_bar(data=bio,aes(x=especies, y=DBH),stat="identity",
+           fill="blue",alpha=0.25)+
+  geom_bar(data=bio,aes(x=especies,y=humedad1),fill="red",
+           stat="identity",alpha=0.35)+
+  scale_y_continuous(sec.axis = sec_axis(~.,name = "humedad1"))
+
+
+bio %>% ggplot()+
+  geom_point(aes(x=carbono,y=humedad1))+
+  geom_smooth(aes(x=carbono,y=humedad1),method = "lm")+
+  geom_point(aes(x=carbono,y=biomasa/10),color="red")+
+  scale_y_continuous(sec.axis = sec_axis(~.*10,name = "bio"))
+
+
+# 2 ejes de la misma variable segun el profe
+P + scale_y_continuous(limits=c(250,800),
+                       breaks = seq(100,1000,100),
+                       position = "right",
+                       expand = c(0,0,0,0),
+                       sec.axis = sec_axis(trans=~.,name = "h2"))+
+  scale_x_continuous(breaks = seq(0,450000,30000))
+
+# 2 ejes de la diferente variable segun el profe
+bio %>% ggplot()+
+  geom_point(aes(x=carbono,y=humedad1))+
+  geom_smooth(aes(x=carbono,y=humedad1),method = "lm")+
+  geom_point(aes(x=carbono,y=biomasa/10),color="red")+
+  scale_y_continuous(sec.axis = sec_axis(trans = ~.*10,name="bio",
+                                         breaks = seq(0,13000,1000)))
+```
+
+## Gráficos de tornado
+
+```{r eval=FALSE}
+
+# create a fake data set
+## some preparation
+set.seed(123)
+ten_positive_rand_numbers <- abs(rnorm(10)) + 0.1
+the_prob <- ten_positive_rand_numbers / 
+  sum(ten_positive_rand_numbers)
+
+fk_data <- data.frame(job_type = sample(LETTERS[1:10],
+                                        1000, 
+                                        replace = TRUE,
+                                        prob = the_prob),
+                      gender = sample(c("Male", "Female"), 1000, 
+                                      replace = TRUE))
+
+# prepare data for plotting
+plotting_df <-
+  fk_data %>% 
+  group_by(job_type, gender) %>% 
+  summarise(Freq = n()) %>% 
+  # a trick!
+  mutate(Freq = if_else(gender == "Male", -Freq, Freq))
+## find the order
+temp_df <-
+  plotting_df %>% 
+  filter(gender == "Female") %>% 
+  arrange(Freq)
+the_order <- temp_df$job_type
+
+temp_df <- temp_df %>% mutate(prop=round(Freq/484,digits = 2))
+# plot
+p <- 
+  plotting_df %>% 
+  ggplot(aes(x = job_type, y = Freq, group = gender, fill = gender)) +
+  geom_bar(stat = "identity", width = 0.95) +
+  coord_flip() +
+  scale_x_discrete(limits = the_order) +
+  # another trick!
+  scale_y_continuous(breaks = seq(-150, 150, 50), 
+                     labels = abs(seq(-150, 150, 50))) +
+  labs(x = "Job type", y = "Count", title = "Back-to-back bar chart") +
+  theme(legend.position = "bottom",
+        legend.title = element_blank(),
+        plot.title = element_text(hjust = 0.5),
+        panel.background = element_rect(fill =  "white")) +
+  # reverse the order of items in legend
+  # guides(fill = guide_legend(reverse = TRUE)) +
+  # change the default colors of bars 
+  scale_fill_manual(values=c("lightblue", "pink"),
+                    name=" ",
+                    breaks=c("Male", "Female"),
+                    labels=c("Male", "Female"))+
+  geom_label(data=plotting_df,aes(x=job_type,y=Freq,label=scales::percent(frec)),fill="white",alpha=0.7,size=3.25);p
+
+# hjust = ifelse(valor < 0, 1.25, -0.25)
+# # Color basado en valor
+# color <- ifelse(df$valor < 0, "pink", "lightblue")
+```
+
+# **Modificar escalas discretas (ejes)**
+
+Crearemos un objeto llamado F que contenga un boxplot con la base de datos `bd` usando las columnas `especies` y `carbono`.
+
+```{r eval=FALSE}
+# Crea el boxplot F
+F <- bio %>% ggplot(aes(x=especies, y=carbono))+ 
+  geom_boxplot()
+
+# Cambiar el nombre de nivel en el eje x 
+F + scale_x_discrete(labels=c("A. smithii"="AS",
+                              "E. pilularis"="EP"))
+
+# Abreviar todos los niveles del eje x 
+F + scale_x_discrete(labels=abbreviate(names.arg=
+                                         unique(bio$especies),
+                                       minlength = 4))
+
+# Limitar el gráfico a las especies A. smithii y A. tamarugo
+F + scale_x_discrete(breaks=c("A. smithii","E. pilularis"))
+F + scale_x_discrete(limits=c("A. smithii","E. pilularis"))# correct
+```
+
+# **Colores y rellenos discretos**
+
+Usaremos de ejemplo un boxplot para modificar a gusto los colores
+
+```{r eval=FALSE}
+# Rellenar y colorear el boxplot con el mismo tono para todos
+# los niveles de la variable discreta del eje x (orangered, coral)
+bio %>% 
+  ggplot(aes(x=especies, y=carbono))+ 
+  geom_boxplot(color="orangered",fill="coral",alpha=0.5)+
+  scale_y_continuous(labels = scales::number,
+                     breaks = seq(0,400000,50000))
+ 
+
+# Creemos dos boxplots, uno listo para rellena (fill)
+# y el otro listo para colorear (color)
+COL <- bio %>% 
+  ggplot(aes(x=especies, y=carbono, color=especies))+ 
+  geom_boxplot()
+
+FILL <- bio %>% 
+  ggplot(aes(x=especies, y=carbono, fill=especies))+ 
+  geom_boxplot()
+
+# Aplicar rellenado y coloreado con paletas discretas
+FILL + scale_fill_brewer(palette = "Dark2")
+COL + scale_color_brewer(palette = "Dark2")
+
+# Aplicar rellenado y coloreado utilizando paletas discretas de ggthemes
+COL + ggthemes::scale_color_tableau(palette = "Summer")
+FILL + ggthemes::scale_fill_tableau(palette = "Summer")
+FILL + ggthemes::scale_fill_tableau(palette = "Winter")
+
+# Aplicar rellenado y coloreado utilizando paletas en escala de grises
+COL + scale_color_grey()
+FILL + scale_fill_grey(start = 0.35,end = 0.80)
+
+# Aplicar rellenado con colores hexadecimales especificados 
+# manualmente: #8e00ed, #00baed
+FILL + scale_fill_manual(values = c("#f0bc00","#b2b6f5",
+                                    "#1c3080","#361757",
+                                    "#461757","#690f42",
+                                    "#165e0c"))
+```
+
+# **Colores y rellenos continuos**
+
+Utilicemos la base de datos `storms` para crear un un gráfico de calor hexagonal con las columnas `wind` y `pressure`.
+
+```{r eval=FALSE}
+# Crea el gráfico de calor hexagonal
+H <- antropo %>% 
+  ggplot(aes(x=foot_length, y=height))+
+  geom_hex()
+
+# Rellenar con gradientes predefinidos
+# (Crear la paleta para scale_fill_gradient()):
+paleta <- c("#0D0887FF","#7E03A8FF","#CC4678FF","#F89441FF")
+H + scale_fill_gradientn(colours = viridis::cividis(10))
+H + scale_fill_gradientn(colours = viridis::inferno(10))
+H + scale_fill_gradientn(colours = viridis::magma(10))
+H +  scale_fill_gradientn(colours = viridis::plasma(10))
+
+H +  scale_fill_gradientn(colours = heat.colors(10))
+
+H +  scale_fill_gradientn(colours = paleta)
+
+H +  scale_fill_gradientn(colours = c("#f0bc00","#b2b6f5",
+                                    "#1c3080","#361757",
+                                    "#461757"))
+
+# Rellenar con gradientes definiendo color mínimo y máximo (red, blue)
+H +  scale_fill_gradient(low = "red",high = "yellow")
+H +  scale_fill_gradient(low = "blue",high = "lightgreen")
+
+# Rellenar con gradientes definiendo color 
+# mínimo, medio y máximo (red, white, blue)
+H +  scale_fill_gradient2(low = "darkgreen",mid = "gray80",
+                          high = "lightyellow",
+                          midpoint = 30)
+```
+
+# **Formas de puntos y líneas**
+
+La "gg" de ggplot deriva de gramática de gráficos. Es uno de las estructuras de lenguaje de programación más
+
+```{r eval=FALSE}
+# Carga la base de datos msleep
+data("msleep")
+msleep <- msleep %>% filter(!is.na(vore))
+
+# Genera un gráfico de dispersión de puntos
+# condicionando el tipo de punto por la columna vore
+msleep %>% ggplot()+
+  geom_point(aes(x=sleep_total,y=sleep_rem,shape=vore,
+                      color=vore),size=3,alpha=0.7)+
+  scale_colour_brewer(palette = "Dark2")
+ 
+
+# Filtra los valores NA de vore, y guarda el gráfico en el ambiente
+# define el color con vore
+E <-  msleep %>% 
+  ggplot()+
+  geom_point(aes(x=sleep_total, y=sleep_rem, shape=vore,
+                 color=vore),size=3)
+E + geom_smooth(aes(x=sleep_total, y=sleep_rem,lty=vore)
+                ,lwd=1,method="lm",se=FALSE,
+                color="black")
+
+# Usa la función de cambio manual de forma de punto
+E + scale_shape_manual(values = c(3,6,15,20))
+E + scale_shape_manual(values=c(3,6,15,20))+
+                         scale_color_brewer(palette="Dark2")
+
+# Carga la base de datos masslost
+lineas <- openxlsx::read.xlsx("lines.xlsx")
+lineas <- openxlsx::read.xlsx(choose.files())
+
+# Genera un gráfico de líneas con diferente forma de línea 
+# en relación a las categorías de la columna z
+lineas %>% ggplot()+
+  geom_line(aes(x=conc.enzima,y=actividad,color=z
+                ,lty=z),lwd=1.3)+
+  scale_x_continuous(breaks=seq(0,80,10))
+
+lineas %>% ggplot()+
+  geom_line(aes(x=conc.enzima,y=actividad,lty=z),size=0.9)+
+  scale_linetype_manual(values = c(3,5))+
+  geom_point(aes(x=conc.enzima,y=actividad,shape=z),color="black",
+             size=2)+
+  scale_shape_manual(values = c(15,17))+
+  scale_x_continuous(breaks=seq(0,80,10))
+```
+
+# **Rotaciones y Facetas**
+
+```{r eval=FALSE}
+# Reto Crea un boxplot como el mostrado en la diapositiva 97
+data("iris")
+G <- iris %>% 
+  gather(key=variables, value=valores, 1:4) %>% 
+  ggplot(aes(x=variables, y=valores, fill=Species, color=Species))+
+  geom_boxplot()+
+  scale_fill_brewer(palette="PuOr")+
+  scale_color_manual(values=c("#d43500", "#333333", "#27008a"))
+
+# Gira el gráfico anterior
+G + coord_flip()+
+  scale_x_discrete(labels=abbreviate)
+
+# Divide el gráfico mediante la columna Species
+G + coord_flip()+ facet_wrap(~Species)
+G + facet_wrap(~Species)
+G + coord_flip()+ facet_wrap(~Species,ncol = 2)
+# en coord_flip se puede colocar off para no recortar bordes    
+
+# Crea un nuevo objeto en el ambiente
+# almacenando un gráfico de dispersión de puntos
+# con las base de datos gapminder:
+library(dslabs)
+data("gapminder")
+
+gapminder$ferticateg <- cut(gapminder$fertility,
+                           breaks=c(-Inf,2,4,6,8,Inf), 
+                           labels=c("<2","2-4","4-6","6-8",">8"))
+
+gapminder<-na.omit(gapminder)
+
+H <- gapminder %>% 
+  ggplot(aes(x=infant_mortality, y=life_expectancy,
+             color=continent))+
+  geom_point()
+
+# Facetas con facet_grid(): usa tipo.suelo, regiones, especies
+H + facet_grid(.~continent)
+H + facet_grid(continent~.)
+H + facet_grid(.~ferticateg)
+H + facet_grid(ferticateg~.)
+H + facet_grid(ferticateg~continent)
+H + facet_grid(continent~ferticateg)
+
+# Facetas con facet_wrap() 
+H + facet_wrap(~continent)
+H + facet_wrap(ferticateg~continent,ncol = 3,nrow = 7)
+```
+
+# **Etiquetas del Gráfico**
+
+```{r eval=FALSE}
+# Usemos el gráfico de boxplot generado en la sección anterior
+# y adicionemos todas las etiquetas posibles para ver en qué
+# partes del gráfico aparecen escritas
+G
+
+J <- G + labs(title = "Pétalos por cada especie",
+              subtitle = "Valores de longitud",
+              x="Características florales",
+              y="Medición (cm)",
+              caption = "Elaborado por: \n Bryan Quispe",
+              tag = "A")
+
+# cambiando el nombre de la leyenda
+J+ labs(fill="Flores",color="Flores")+
+  scale_color_brewer(palette = "PuOr")+
+  scale_fill_brewer(palette="Dark2")
+```
+
+**Trabajar con ggThemeAssist**
+
+```{r eval=FALSE}
+library(ggThemeAssist)
+J + theme(plot.subtitle = element_text(size = 11,
+    hjust = 0.5), plot.caption = element_text(size = 11),
+    panel.grid.major = element_line(colour = "gray90",
+        linetype = "dashed"), 
+    panel.grid.minor = element_line(linetype = "blank"),
+    axis.title = element_text(size = 10),
+    axis.text = element_text(size = 8,
+        face = "bold.italic"), axis.text.x = element_text(size = 8,
+        vjust = 2), plot.title = element_text(family = "Japan1",
+        size = 17, hjust = 0.5), 
+    legend.title = element_text(size = 12,face = "bold"),
+    panel.background = element_rect(fill = "white",
+        colour = "whitesmoke", size = 1.1,
+        linetype = "solid"), 
+    plot.background = element_rect(fill = "whitesmoke",
+        colour = NA, linetype = "solid"),
+    legend.background = element_rect(fill = NA),
+    legend.position = "top", legend.direction = "horizontal") +
+  labs(subtitle = "Valores de longitud para cada especie considerada en el muestreo",
+    caption = "Elaborado por: Bryan Quispe")
+```
+
+# **Todopoderoso `theme()`**
+
+Todo se puede editar con `theme()`, desde el grosor de los guiones que figuran en el eje x, hasta el fondo del gráfico, la posición de la leyenda, etc. `theme()` tiene **al menos 88 argumentos** con los que puedes editar el gráfico a detalle.
+
+**Funciones modificadoras de elementos**
+
+Cada argumento acepta una función que lo modifique. Esta función debe ser del tipo específico que requiere el argumento:
+
+-   Si el argumento modifica **texto**, la función modificadora que acepta sería `element_text()`.
+
+-   Si el argumento modifica **cajas**, la función modificadora que acepta sería `element_rect()`
+
+-   Si el argumento modifica **líneas**, la función modificadora que acepta sería `element_line()`
+
+-   Si deseas desaparecer lo que modifica dicho argumento, la función modificadora que acepta sería `element_blank()`. La excepción es la posición de la leyenda, para eliminarla debes colocar no la funión `element_blank()`, sino simplemente `"none"`.
+
+```{r eval=FALSE}
+J + 
+  theme(...)
+```
+
+# **Temas predefinidos**
+
+Usa tanto temas de `ggplot2` como de `ggthemes`.
+
+```{r eval=FALSE}
+library(ggplot2)
+library(ggthemes)
+
+J + theme_bw()
+J + theme_classic()
+J + theme_test()
+J + theme_fivethirtyeight()
+J + theme_stata()
+
+# Paa configurar todos los trabajos de los proyectos
+theme_set(theme_classic()) # configura a modo clásico
+theme_update(theme_classic(axis.title=element_text(face=2)))
+# face=2, negrita, 3 para negrita y cursiva
+
+theme_get() # obtiene un teme de gráfico ya realizado
+
+# theme_set(theme_bw())
+```
+
+# Gráficos de alta calidad
+
+```{r eval=FALSE}
+# Existe png, jpeg, pdf
+png("msleep.png", res = 600,units="cm",width =10 ,height = 14,
+    bg="black")
+
+s+geom_label_repel(aes(label=vore,fill=vore))+
+  geom_point(color="red")
+
+dev.off()
+
+# exportando como jpeg
+jpeg("msleep.jpeg", res = 600,units="cm",width =18 ,height = 14,
+    bg="black")
+
+s+geom_label_repel(aes(label=vore,fill=vore))+
+  geom_point(color="red")
+
+dev.off()
+
+# Exportando como pdf
+pdf("mi_pdf.pdf",width = 8,height = 4,bg="white",
+    fg="black",colormodel = "cmyk",paper="A4")
+
+s+geom_label_repel(aes(label=vore,fill=vore))+
+  geom_point(color="red")
+
+dev.off()
+```
+
+# Reto Inicial
+
+1.  Carga la base de datos `multiplicata_fvs_choice_updated2020.xlsx`.
+2.  Visualiza el **primer reto:** [correlaciones.png (3779×4724) (raw.githubusercontent.com)](https://raw.githubusercontent.com/irwingss/IrwingRLab/master/graph/correlaciones.png)
+3.  Visualiza el **segundo reto:** [regresiones.png (3779×4724) (raw.githubusercontent.com)](https://raw.githubusercontent.com/irwingss/IrwingRLab/master/graph/regresiones.png)
+4.  En ambos retos, antes de graficar, debes filtrar la base de datos para que solamente utilices los años (columna `yr_collected`) que tengan más de 10 datos.
+
+```{r eval=FALSE}
+
+DF <- openxlsx::read.xlsx("multiplicata_fvs_choice_updated2020.xlsx")
+# ¿Qué columnas no debo usar en el gráfico?
+library(tidyverse)
+DF %>% count(yr_collected) %>% arrange(n)
+
+```
+
+5.  Se generarán dos conjuntos de gráficos de dispersión de puntos entre las columnas `svl_hi` y `mass_hi`.
+6.  Asegúrate tener el gráfico bien hecho (sin incluir las correlaciones o regresiones)
+
+## **Primer Reto: adicionar correlaciones**
+
+```{r eval=FALSE}
+theme_set(theme_bw())
+DF[DF$yr_collected>2009,] # Una forma de filtrar
+DF2 <- DF %>% filter(!yr_collected %in% 2007:2009)
+DF2 <- DF %>% filter(yr_collected %in% 2010:2019)
+
+A <- DF2 %>% ggplot(aes(x=svl_hi,y=mass_hi))+
+  geom_point(alpha=0.3,color="coral",size=3)+
+  facet_wrap(~yr_collected,ncol = 2)+
+  labs(x = "Longitud Hocico Respiradero (SLV)",
+    y = "Condición corporal (mass/SLV)",tag  = "A")+ 
+  theme(panel.grid.major = element_line(linetype = "blank"),
+    panel.grid.minor = element_line(linetype = "blank"),
+    axis.title = element_text(face = "bold"),
+    panel.background = element_rect(fill = "gray95"),
+    plot.background = element_rect(fill = "gray95")) +
+    ggpubr::stat_cor(aes(label=paste(..r.label..,
+                                     ..p.label..,
+                                     sep = "~~")),
+                     color="black",geom = "text",
+                     label.x = 35,label.y = 20,
+                     size=3.5)
+
+  
+```
+
+## **Segundo Reto: adicionar regresiones**
+
+```{r eval=FALSE}
+
+B <- DF2 %>% ggplot(aes(x=svl_hi,y=mass_hi,color=factor(yr_collected)))+
+  geom_point(alpha=0.3,size=3)+
+  geom_smooth(method = "lm",se=FALSE)+
+  facet_wrap(~yr_collected,ncol = 2)+
+  labs(x = "Longitud Hocico Respiradero (SLV)",
+    y = "Condición corporal (mass/SLV)",tag  = "B")+ 
+  theme(legend.position="none",
+        panel.grid.major = element_line(linetype = "blank"),
+    panel.grid.minor = element_line(linetype = "blank"),
+    axis.title = element_text(face = "bold"),
+    panel.background = element_rect(fill = "gray95"),
+    plot.background = element_rect(fill = "gray95")) +
+    ggpubr::stat_regline_equation(label.x = 35,label.y = 20,
+                                  aes(label=paste(..eq.label..,
+                                                  ..adj.rr.label..,
+                                                  sep = "~~~")))
+
+```
+
+# `patchwork`**: sintaxis de organización de gráficos**
+
+Esta librería permite usar operaciones aritméticas, entre algún otro operador, para unir gráficos:
+
+-   El símbolo `+` pone dos (solo hasta 3) gráficos lado a lado.
+
+-   El símbolo `|` divide al gráfico en partes iguales lado a lado.
+
+-   El símbolo `/` divide el gráfico en partes iguales una sobre otra.
+
+-   El símbolo `&` permite adicionar modificaciones al gráfico unido por patchwork: título general, temas por defecto, o modificaciones del tema.
+
+-   Más ejemplos de ensamblaje de plots: [Plot Assembly • patchwork](https://patchwork.data-imaginist.com/articles/guides/assembly.html)
+
+-   Anotaciones: [Adding Annotation and Style • patchwork](https://patchwork.data-imaginist.com/articles/guides/annotation.html)
+
+-   Controlando el plot: [Controlling Layouts • patchwork](https://patchwork.data-imaginist.com/articles/guides/layout.html)
+
+### Creemos dos gráficos más:
+
+```{r eval=FALSE}
+C <- iris %>% ggplot(aes(Petal.Length, Sepal.Length))+geom_point()
+D <- iris %>% ggplot(aes(Petal.Length, Species))+geom_boxplot()
+```
+
+### Utilicemos Patchwork:
+
+```{r eval=FALSE}
+library(patchwork)
+
+# Gráficos lado a lado
+png("nombre.png",res = 600,units = "cm",height = 14, width = 20)
+A+B
+dev.off()
+# ¿Se podrán cuatro o más gráficos lado a lado? o no
+A+B+C+D # así hace un reordenamiento
+A+B|C+D # si se puede xd
+
+# Dividir el gráfico en partes iguales lado a lado 
+C+D
+A|B|C #el límite es 3
+A+B|C # hace que el operador | divida en 2 partes iguales
+
+# Dividir el gráfico en partes iguales una sobre otra 
+C/D
+A+B/D # es como la prioridad de los operadores
+(A+B)/D
+A|C+D
+# Cambios especiales: operador &
+(C / D | A) & 
+  theme(plot.background = element_rect(fill = "gray90"))
+
+# Resultado final del Reto
+(A|B) & theme(plot.background = element_rect(fill = "gray90"))
+
+
+# con ggpubr
+ggpubr::ggarrange(A,B)
+```
+
+# **`gganimate`: Gráficos Animados**
+
+```{r eval=FALSE}
+# Creemos un gráfico estático
+library(gapminder)
+library(gganimate)
+
+Grafico <- gapminder %>% filter(continent=="Americas") %>% 
+  ggplot(aes(gdp, life_expectancy, label=country, colour=country)) +
+  geom_label(alpha=0.7)+
+  scale_x_log10() +
+  scale_size(range = c(3, 15))+
+  theme_minimal()+
+  theme(legend.position="none")
+
+# Creemos un gráfico animado
+Grafico <- Grafico + 
+  labs(title = "Año {frame_time}" )+
+  transition_time(year) # funciona bien xd
+
+```
+
+## Transiciones temporales en gráficos de dispersión de puntos
+
+```{r eval=FALSE}
+# Creemos un gráfico estático
+library(gapminder)
+p <- gapminder %>% 
+  ggplot(aes(x = gdpPercap, y=lifeExp, 
+             size = pop, colour = country)) +
+  geom_point(show.legend = FALSE, alpha = 0.7) +
+  labs(x = "GDP per capita", y = "Life expectancy")+
+  scale_color_viridis_d() +
+  scale_size(range = c(2, 12)) +
+  scale_x_log10()
+
+
+
+# Transición por variable year
+p + labs(title = "Año: {frame_time}")+
+  transition_time(year)
+
+# Transición por variable year y con faceta por continent
+p +labs(title = "Año: {frame_time}")+
+  transition_time(year) + facet_wrap(~continent) +
+  scale_x_continuous(labels = scales::number)
+
+# Transición por variable year y seguimiento activo de los datos
+p +labs(title = "Año: {frame_time}")+
+  transition_time(year) + 
+  view_follow(fixed_y = TRUE)
+
+# Transición por variable year y movimiento con sombras móviles
+p  +labs(title = "Año: {frame_time}")+
+  transition_time(year)+
+  shadow_wake(wake_length = 0.1)
+
+# Transición por variable year y movimiento con sombras fijas
+# Dejan un rastro del movimiento de los objetos
+ p  +labs(title = "Año: {frame_time}")+
+  transition_time(year) + 
+   shadow_mark(alpha=0.4,size=0.5)
+
+```
+
+## Transiciones temporales en gráficos de líneas
+
+```{r eval=FALSE}
+# Creemos un gráfico de lineas simple
+Z <- airquality %>% 
+  mutate(Month = factor(Month, labels=c("5"="Mayo","6"="Junio"
+                                        ,"7"="Julio",
+                                        "8"="Agosto",
+                                        "9"="Setiembre"))) %>%   ggplot(aes(x=Day, y=Temp, color=Month))+ 
+  geom_line() +
+  labs(x = "Día del mes", y = "Temperatura") +
+  theme_bw()+
+  theme(legend.position = "top")
+Z
+
+# Transición de las líneas por revelado en base al eje x
+Z + transition_reveal(Day)
+
+# Transición de las líneas guiadas por punto, 
+# con revelado en base al eje x
+Z + geom_point() + transition_reveal(Day)
+
+# Transición de las líneas y punto, 
+# con revelado en base al eje x
+Z + geom_point(aes(group=seq_along(Day)))+
+  transition_reveal(Day)
+```
+
+## Exportando GIFs animados en alta calidad
+
+```{r eval=FALSE}
+# Se debe guardar el gráfico animado final en un objeto
+Final <- Z + geom_point(aes(group=seq_along(Day)))+
+  transition_reveal(Day)
+
+# Generemos la animación
+animate(Final,fps = 5, res=150, units="cm",
+        height=15,width=20,
+        renderer = magick_renderer()) 
+
+# Exportemos la animación activa en el Visualizador (Panel Viewer)
+anim_save("mi_gif.gif") # requiere que esté en el viewer
+```
+
+# `ggstatsplot`**: Gráfico de estadísticos automáticos**
+
+Usaremos esta la función `ggbetweenstats()` de la librería `ggstatsplot` para generar gráficos estadísticos de comparaciones de grupos (paramétricas y no paramétricas). El gráfico generado muestra la distribución de los datos (caja, violín, caja-violín) y los mismos datos (puntos) además de:
+
+1.  Estadístico de comparación de grupos (Prueba T, Anova).
+
+2.  P valor de la comparación.
+
+3.  Tamaño del efecto (g de Hedges, Omega cuadrado, Eta cuadrado)
+
+4.  Intervalo de confianza del Tamaño del Efecto.
+
+5.  Número de observaciones.
+
+6.  Medida de tendencia central (media, mediana) de cada grupo.
+
+7.  Número de observaciones por grupo en el eje X.
+
+8.  Prueba de hipótesis Bayesiana, estimación Bayesiana (no la usaremos).
+
+```{r eval=FALSE}
+# Usemos la función ggbetweenstats() para visualizar las
+# comparaciones entre grupos para la base de datos iris
+# para comprar la longitud de sépalo de las especies
+data("iris")
+
+ggbetweenstats(data=iris,y= Sepal.Length, x=Species,
+               type = "parametric") # Non-parametric
+rstatix::welch_anova_test(Sepal.Length~Species,data=iris)
+# p =1.51e-28 lo mismo que en el gráfico
+
+# Usemos la misma función sobre la base de datos antropo
+# para comparar la talla entre los géneros
+antropo <- openxlsx::read.xlsx("anthropometry.xlsx")
+antropo <- openxlsx::read.xlsx(file.choose())
+
+ggbetweenstats(data=antropo,x=gender, y=height)
+t.test(height~gender,data=antropo) # p-value = 0.0005335, same xd
+
+# Veamos los argumentos de la función ggbetweenstats()
+?ggbetweenstats
+```
+
+## Mini Reto
+
+En este estudio se pretende evaluar si existe diferencias significativas entre los continentes para la variable expectativa de vida en el año 2007. Ten en cuenta que la base de datos `gapminder` tiene información de varios años.
+
+1.  Debes filtrar la base para el año requerido.
+
+2.  Un continente (Oceanía) solo tiene dos observaciones (países) en la base, por lo que debes filtrarla para no incluirla en el estudio.
+
+3.  Revisa qué prueba estadística debes eliminar (**Tip**: siempre se recomienda revisar primero la asunción teórica **`"normalidad de los residuales por grupos"`** de un modelo lineal sencillo).
+
+4.  Una vez conociendo el análisis a ejecutar, elabora el código para crear el gráfico con `ggbetweenstats(`). Considera colocar como mínimo:
+
+    -   Título: Distribución de la Expectativa de vida de cuatro continentes en 2007.
+
+    -   Título: en negritas.
+
+    -   Título de eje X: Continente.
+
+    -   Título de eje Y: Expectativa de vida.
+
+    -   La paleta de colores: `Classic 10` de la librería `ggthemes`.
+
+Toda la información de esta función en: [ggbetweenstats • ggstatsplot (indrajeetpatil.github.io)](https://indrajeetpatil.github.io/ggstatsplot/articles/web_only/ggbetweenstats.html)
+
+```{r eval=FALSE}
+library(gapminder)
+# p.adjust.method = "holm", "bonferroni"
+# plot.type = "boxviolin" "box" "violin"
+gap2 <- gapminder %>% filter(year==2007&
+                     continent!= "Oceania")
+
+mod <- lm(data=gap2,lifeExp~continent)
+check_model(mod)
+gapminder %>% filter(year==2007,
+                     continent!= "Oceania") %>% 
+  group_by(continent) %>% 
+  summarise(p=shapiro_test(lifeExp)) # no hay normalidad
+# debió probarse con los residuales ordenados
+
+#El profe lo hizo así:
+lm(lifeExp~continent, data=gapminder %>% 
+     filter(year==2007&
+              continent!= "Oceania")) %>% 
+  broom::augment() %>% 
+  group_by(continent) %>% 
+  rstatix::shapiro_test(.resid)
+  
+
+ggbetweenstats(data=gap2,x=continent,y=lifeExp,
+               p.adjust.method = "bonferroni", #holm
+               plot.type = "box",
+               type = "Non-parametric",  # "np"
+               pairwise.display = "all", #allposth
+               xlab = "Continentes",
+               ylab="Expectativa de vida",
+               title = "Distrib de EXp",
+               centrality.plotting = T, # meanpoint
+               centrality.label.args = list(size=2))+
+  ggthemes::scale_color_tableau(palette="Classic 10")+
+  theme(plot.title = element_text(face=2))
+
+# same stats
+kruskal_test(data=gap2,formula = lifeExp~continent) 
+```
+
+Además, `ggstatsplot` tiene otras funciones también muy útiles para generar gráficos automáticos con información estadística. Les invito a revisar los detalles de este paquete en: [ggplot2 Based Plots with Statistical Details • ggstatsplot (indrajeetpatil.github.io)](https://indrajeetpatil.github.io/ggstatsplot/index.html)
+
+-   `ggbetweenstats()`: comparar grupos con muestras independientes.
+
+-   `ggwithinstats()`: comparar grupos con muestras repetidas (diseños dependientes).
+
+-   `gghistostats()`: histograma de un conjunto de datos.
+
+-   `ggdotplotstats()`: dotplots para variables numéricas y categóricas (similar a gráfico de barras).
+
+-   `ggscatterstats()`: para dispersiones de puntos, correlaciones entre dos variables.
+
+-   `ggcorrmat()`: matrices de correlación o correlogramas:
+
+-   `ggpiestats()`: para datos categóricos.
+
+-   `ggbarstats()`: para gráficos de barras y pruebas de chi cuadrado.
+
+-   `ggcoefstats()`: reporte de regresiones y metaanálisis.
+
+# `ggpubr`**: una versión de ggplot más sencilla**
+
+Nos hemos venido familiarizando con gráficos de esta librería en el curso anterior. Veremos un resumen de las funciones ya usadas, algunas nuevas, y discriminaremos su modo de uso del típico código de `ggplot2`.
+
+```{r eval=FALSE}
+# Creemos dos conjuntos de colores para graficar con ellos
+paleta.dos <- c("#29a600","#1d0180")
+
+# Gráfico de densidad
+library(ggpubr)
+
+ggdensity(data = antropo,
+          x="height",color = "gender",
+          fill="gender")
+# Histograma de frecuencias
+gghistogram(data = antropo,x="height",
+            fill="gender",
+            facet.by = "gender")
+
+# Gráfico de violines
+ggviolin(data=antropo,x="gender",y="height",
+         fill="gender",add = c("boxplot",
+                               "jitter"),
+         add.params = list(alpha=0.2,
+                           color="blue"))
+
+# Boxplot (+ argumentos de nombres de eje x e y)
+Z <- ggboxplot(y="height",x="gender",fill="gender",
+               data=antropo)
+
+Z
+
+# Boxplot con comparaciones de grupos (significancia)
+comparaciones <- list(c("female","male"))
+rstatix::levene_test(data = antropo,height~gender) 
+# p=0.000000384, son heterogéneas
+
+ajustes.mtd <- list(paired=FALSE,var.equal=FALSE)
+
+Z + stat_compare_means(comparisons = comparaciones, 
+                                method = "t.test",
+                                label.y = 195,
+                                label = "p.signif",
+                                method.args = ajustes.mtd)
+```
+
+### Adicionar regresiones y datos de modelos a gráficos de dispersión
+
+[Add Regression Line Equation and R-Square to a GGPLOT. --- stat_regline_equation • ggpubr (datanovia.com)](https://rpkgs.datanovia.com/ggpubr/reference/stat_regline_equation.html)
+
+Se coloca la etiqueta de la información de la regresión usando una estética:
+
+-   Ecuación: `aes(label=..eq.label..)`
+
+-   R2: `aes(label=..rr.label..)`
+
+-   R2 ajustado: `aes(label=..adj.rr.label..)`
+
+-   AIC: `aes(label=..AIC.label..)`
+
+-   BIC: `aes(label=..BIC.label..)`
+
+```{r eval=FALSE}
+# Gráfico de dispersión de Puntos
+P <- ggscatter(antropo, x="foot_length", y="height",add="reg.line", 
+               color="gender", alpha=0.05,facet.by = "gender") 
+P
+
+# Adicionar ecuación del modelo
+P + stat_regline_equation(label.x= 135, label.y= 185,
+                          aes(label=..eq.label..,
+                              color=gender))
+
+# Adicionar el R cuadrado del modelo
+P + stat_regline_equation(label.x= 135, label.y= 185,
+                          aes(label=..rr.label..,
+                              color=gender))
+
+# Adicionar el R cuadrado ajustado del modelo
+P + stat_regline_equation(label.x= 135, label.y= 185,
+                          aes(label=..adj.rr.label..,
+                              color=gender))
+
+# Adicionar el AIC (Criterio de Información de Akaike) del modelo
+P + stat_regline_equation(label.x= 135, label.y= 185,
+                          aes(label=..AIC.label..,
+                              color=gender))
+
+# Adicionar el BIC (Criterio de Información Bayesiano) del modelo
+P + stat_regline_equation(label.x= 135, label.y= 185,
+                          aes(label=..BIC.label..,
+                              color=gender))
+# Adicionar información diversa del modelo (a  la vez): un modelo
+P + stat_regline_equation(label.x= 135, label.y= 185,size=4,
+                          aes(label=paste(..eq.label..,
+                                           ..rr.label..,
+                                           ..AIC.label..,
+                                           sep="~~"),
+                              color=gender))
+
+# Adicionar información diversa del modelo (a  la vez): agrupado
+Graf <- P + stat_regline_equation(label.x= 135, label.y= 185,size=4,
+                          aes(label=paste(..eq.label..,
+                                           ..rr.label..,
+                                           ..AIC.label..,
+                                           sep="~~"),
+                              color=gender))
+
+
+# Adicionar información diversa del modelo (a  la vez): agrupado con corrección de leyenda ,elimina las letras de la leyenda
+Graf +
+  guides(color=guide_legend(override.aes = list(label = c("",""))))
+```
+
+La función `stat_regline_equation()` también puede ser adicionada al código de un gráfico generado con `ggplot()`.
+
+# `ggcorplot`**: Correlogramas**
+
+Usaremos esta la función `ggcorrplot()` de la librería `ggcorrplot` para generar un correlograma. Los argumentos que la función admite son:
+
+-   `hc.order`: lógico, reordena el gráfico según el nivel de correlación de las variables
+
+-   `outline.col`: color de las lineas de los cuadrantes
+
+-   `type`: (lower, upper, full) cómo se visualizará la matriz de correlaciones
+
+-   `ggtheme`: adiciona un tema de `ggplot2` o de `ggthemes`.
+
+-   `lab`: lógico, si es verdadero muestra el valor de la correlación en cada casilla
+
+-   `insig = "blank"`: si es colocado en la función hace que todas las correlaciones no significativas no se muestren. Para que funcione, debes haber colocado `p.mat = p.valores`.
+
+-   `p.mat`: admite la matriz de p-valores de las correlaciones.
+
+```{r eval=FALSE}
+# Activa la librería ggcorplot y carga la base de datos mtcars
+library(ggcorrplot)
+data(mtcars)
+
+# Selecciona únicamente las columnas numéricas (ESENCIAL)
+datos <- mtcars %>% select_if(is.numeric)
+
+# Crea la matriz de correlaciones con el método debido
+matriz.cor <- cor(datos,method = "pearson") %>% 
+  round(2)
+
+# Crea la matriz de p-valores asociados a la matriz de correlaciones
+p.valores <- cor_pmat(datos)
+
+# Creemos el Correlograma
+ggcorrplot(matriz.cor)
+ggcorrplot(matriz.cor,
+           type = "lower", #complete,lower,upper
+           hc.order = TRUE, #orden por lvl correlacion
+           p.mat = p.valores, # x para las no signif
+           insig = "blank", # a las casillas no sig en blanco
+                            # por defecto "pch" o "blank
+           outline.color = "white")+
+  theme_bw()+
+  scale_fill_gradient2(low="red",high = "blue" 
+                       ,mid = "white" ,midpoint = 0)+
+  labs(fill="correlación",title = "matriz de correlación")
+```
+
+# Exporta los gráficos en UHD
+
+Este método es el que siempre utilizo para exportar gráficos en RStudio. La imagen generada tiene formato png, que es una versión no comprimida del JPEG, por lo que mantiene aún más su calidad.
+
+El método consiste en tres pasos:
+
+-   Definir el nombre del archivo final, el tamaño y resolución dentro de la función `png()`.
+
+-   Ejecutar el gráfico (como si quisieramos visualizarlo en el panel gráfico).
+
+-   Ejecutar la función `dev.off()` para cerrar la exportación (INDISPENSABLE).
+
+```{r eval=FALSE}
+png("NOMBRE DEL GRÁFICO.png", units="cm", height=15, width=18,
+    res=600)
+# GRAFICO
+dev.off()
+```
+
+# **Práctica de Casa 04 - Gráficos Avanzados con ggplot2**
+
+Link de la práctica desarrollada: [Práctica de Casa 04 - Gráficos Avanzados con ggplot2 (irwingss.github.io)](https://irwingss.github.io/IrwingRLab/PractCasa04-full.html)
+
+Realiza los siguientes ejercicios durante tu tiempo libre para reforzar practicar las funciones adicionales y geoms que aprendiste durante la semana 7 y 8 del programa (Curso 3).
+
+Recuerda realizar esta práctica luego de haber desarrollado:
+
+-   R-Notebook-C3-S1 parte 1.Rmd
+
+-   R-Notebook-C3-S1 parte 2.Rmd
+
+-   R-Notebook-C3-S2.Rmd
+
+> **Nota 1:** Si necesitas crear un code chunk los atajos en el teclado son en WINDOWS: `Crtl+Alt+i`, y en MAC: `Command+Alt+i`.
+
+**Activa las librarías a usar**
+
+```{r eval=FALSE}
+library(tidyverse)
+library(viridis)
+library(ggthemes)
+library(ggThemeAssist)
+library(ggrepel)
+library(patchwork)
+library(ggstatsplot)
+library(gapminder)
+```
+
+# **Ejercicio 0:**
+
+Ejecuta el siguiente código para crear una base de datos del tipo tabla de frecuencias. Lo que se hizo fue tomar la base de datos `storm`, filtrar solo las filas que cumplan con los criterios ser del estatus Huracán y de categoría 4, además de no tener valor de NA en diámetro de la tormenta (`ts_diameter`). Posteriormente, se agrupo por nombre de huracán para realizar un resumen de obtener el promedio de diámetro de tormenta de cada huracán dado que se tenían datos diarios de todos los días que duró cada evento. Luego, se generó una columna llamada `dif` que contiene el cálculo de la diferencia del diámetro de tormenta de cara huracán con el diámetro de tormenta promedio de todos los huracanes registrados. Esto es lo que se pretende graficar. [Mira el gráfico final aquí](https://drive.google.com/file/d/1bGA_Q_xwdq24h_ZITgseh1__1mF0Yscs/view?usp=sharing).
+
+![](images/brave_XCbokaFUAU.png)
+
+```{r eval=FALSE}
+library(tidyverse)
+data("storms")
+
+storms2 <- storms %>%
+  filter(status=="hurricane" & category==4) %>%
+  filter(!is.na(ts_diameter)) %>% 
+  group_by(name) %>% 
+  summarise(prom=mean(ts_diameter, na.rm=TRUE)) %>% 
+  mutate(dif=prom - mean(prom),
+         categoria = ifelse(dif>0, 
+                            "Sobre el promedio", 
+                            "Bajo el promedio"))
+```
+
+Toma el reto de crear el gráfico sin ver el código de la página web, no obstante, puedes seguir este paso a paso:
+
+1.  Define ggplot y las columnas del gráfico dentro de `aes()`.
+
+2.  Adiciona la geométrica de barras.
+
+3.  Revisa si puedes hacer un reordenamiento de la columna name en base a la columna dif, utilizando la función `fct_order()` de forcats.
+
+4.  Gira el gráfico.
+
+5.  Define el tema bw.
+
+6.  Define las etiquetas (x, y, rellenado, título).
+
+7.  Cambia los números que aparecen en el eje horizontal del gráfico a la secuencia de -150 a 150 km de diámetro de tormenta.
+
+8.  Cambia las escalas de rellenado manualmente con los colores "**darkorange**" para bajo el promedio, y "**cyan4**" para sobre el promedio.
+
+9.  Usa la función `theme()` para centrar el título del plot, y colocar la leyenda en la parte superior.
+
+```{r eval=FALSE}
+storms2 %>% ggplot(aes(x=forcats::fct_reorder(name, dif),
+                       y=dif,fill=categoria))+
+  geom_bar(stat="identity")+
+  scale_fill_manual(values = c("darkorange","cyan4"))+
+  scale_y_continuous(breaks = seq(-150,150,50))+
+  coord_flip() + theme(panel.grid.major = element_line(colour = "gray80"),
+    panel.grid.minor = element_line(colour = "gray80"),
+    axis.title = element_text(face = "bold"),
+    plot.title = element_text(face = "bold",
+        hjust = 0.5), panel.background = element_rect(fill = NA),
+    legend.key = element_rect(fill = NA),
+    legend.background = element_rect(fill = NA),
+    legend.position = "top", legend.direction = "horizontal") +
+  labs(title = "Variación del diámetro de tormenta\ndehuracanes categoría IV",
+    x = "Nombre del huracán", 
+ y = "Variación respecto al promedio (km)",
+    fill = NULL)
+```
+
+# **Ejercicio 1:**
+
+Carga la base de datos `mtcars` para realizar el siguiente gráfico ([click aquí para verlo](https://drive.google.com/file/d/1quxRn_JU69D79R9QfmO1G8Yr3M0XwuHk/view?usp=sharing)).
+
+![mtcars graph](images/ejercicio1.png)
+
+Puedes intentar hacerlo todo desde cero por ti mismo como un reto personal (no obstante, revisa el punto 6, 7y 8 porque es información nueva y específica), pero si aún no te sientes muy familiarizado con ggplot2, solo sigue las instrucciones brindadas a continuación:
+
+1.  Crea un gráfico de dispersión de puntos entre las millas por galón (columna `mpg`) y el peso (columna `wt`) de la base de datos mtcars.
+
+2.  Colorea por la cantidad de carburadores que presenta el auto (columna `carb`). La base de datos lee todas las columnas como valores continuos. Asegúrate de convertir a factor la columna de trabajo para que genere el gráfico con colores discretos.
+
+3.  Define la forma de los puntos en base al tipo de motor (columna `vs`)
+
+4.  Adiciona las etiquetas de
+
+    -   Título:"Rendimiento de los Motores Lineares y Tipo V"
+
+    -   Subtítulo: "Los datos se extrajeron de la revista Motor Trend (USA, 1974)"
+
+    -   Eje x: "Millas/Galón"
+
+    -   Eje y: "Peso (1000 libras)"
+
+    -   Leyenda para el color: "Número de Carburadores"
+
+5.  Usa la paleta de colores `"Dark2"` para colorear los puntos
+
+6.  Usa la faceta `facet_wrap()` para dividir el gráfico en base al tipo de motor (columna `vs`). Debes asegurarte que la columna sea un factor para que pueda graficar. Además, debes reemplazar el valor `0` por el nombre `"Tipo V"` y el valor `1` por `"Linear"`. Dentro de la función de faceta puedes definir el número de filas en las que dividirá el gráfico, coloca el argumento `nrow=2` para que genere las facetas en dos filas.
+
+7.  Usemos `theme()` para indicar la ubicación de la leyenda en la parte inferior del gráfico. El argumento que hace esto es `legend.position = "bottom"`. Las posiciones que admite son `"top"` arriba, `"bottom"` abajo, `"left"` izquierda, `"rigth"` derecha.
+
+8.  Usa una nueva función adicional llamada `guides()` que permite modificar algunas cosas la leyenda. En este punto, tu gráfico debe tener dos leyendas. Si deseamos eliminar alguna leyenda que no nos es útil (como la de la forma de los puntos, dado que ya aplicamos facetas separándolos), escribimos el tipo de origen de la leyenda (el argumento de `aes()` que la genera) y le indicamos `FALSE` para que desaparezca así: `guides(shape=FALSE)`.
+
+9.  El objetivo es poner la leyenda en la parte inferior de la gráfica, y en una sola fila. Esto lograremos indicando dentro de `guides()` el argumento de `aes()` que la genera el color (que define al número de carburadores) tenga el valor `guide_legend(nrow = 1)`, así `: color=guide_legend(nrow = 1)`. Significa que forzamos a que la leyenda de color ponga sus valores en una sola línea.
+
+10. Selecciona el código del gráfico por completo, y abre `Addins/ggTheme Assistant` para que veas el asistente de graficación y termines con ello de modificar el gráfico:
+
+    -   Colorea las líneas mayores del panel con el color `gray95`.
+
+    -   Elimina las líneas menores del panel colocandole el tipo `blank` para que no se muestren.
+
+    -   Coloca el rellenado de fondo (Background) del plot como `gray90`.
+
+    -   Coloca el rellenado del panel como `gray90`.
+
+    -   Coloca el color del borde del panel como `gray70`.
+
+    -   Coloca el título del Plot en negrita `bold` y tamaño de letra `13`.
+
+    -   Coloca el subtítulo del Plot en tamaño de letra `10`.
+
+    -   Coloca el título de los ejes (axis) en negrita `bold` y tamaño de letra `10`.
+
+    -   Coloca el título de la leyenda en negrita `bold`.
+
+    -   Coloca el color del fondo (background) de la leyenda en `None` para que desaparezca el color.
+
+    -   Coloca el color del fondo de las claves (key) de la leyenda en `None` para que desaparezca el color.
+
+11. **Adicional:** si deseas aumentar el margen del plot cuando lo exportes y que tenga más espacio a los costados, arriba y abajo, usa el argumento dentro de `theme()` que modifica los márgenes: `plot.margin = unit(c(1,1,1,1),"cm")`. Esto deberás hacerlo manualmente. Así obtendrás exactamente la misma figura que la presentada aquí en el ejercicio.
+
+```{r eval=FALSE}
+data("mtcars")
+# Y=peso en libras == wt  Weight (1000 lbs)
+#	vs == Engine (0 = V-shaped, 1 = straight)
+#x= millas/galon == mpg   Miles/(US) gallon
+# carb ==	Number of carburetors
+
+mtcars %>% ggplot(aes(x=mpg,y=wt,color=factor(carb)))+
+  geom_point(aes(shape=factor(vs)),size=2)+
+  facet_wrap(~factor(vs,
+             labels=c("1"="Linear",
+                      "0"="Tipo V")),ncol=1) + 
+  scale_color_brewer(palette = "Dark2")+
+  theme(plot.margin = unit(c(1,1,1,1),"cm"),
+        plot.subtitle = element_text(size = 12,
+    hjust = 0.5), axis.title = element_text(size = 12),
+    axis.text = element_text(size = 12, face = "bold"),
+    plot.title = element_text(size = 16,
+        hjust = 0.5, vjust = 0.75), 
+    legend.title = element_text(size = 12,face = "bold"),
+    panel.grid.minor = element_line(linetype = "blank"), 
+    plot.background = element_rect(fill = "gray95"),
+    legend.background = element_rect(fill = NA),
+    legend.position = "bottom", legend.direction = "horizontal",
+    strip.text = element_text(face="bold",color = "white",size = 11),
+    strip.background = element_rect(fill="darkcyan"))+
+  labs(title = "Rendimineto de los motores lineares y tipo V",
+    x = "Millas/Galón", y = "Peso (1000 libras)",
+    colour = "Número de carburadores", 
+    shape = NULL,
+    subtitle = "Los datos se extrajeron de la revista Motor Trend (USA, 1974)")+
+  guides(color=guide_legend(nrow = 1),shape=FALSE)
+```
+
+# **Ejercicio 2:**
+
+En este ejercicio aprenderás que la posición de `theme_XYZ()` y `theme()` importa. Si colocamos primero `theme()` y luego `theme_XYZ()`, no importa cuántas modificaciones se hayan realizado con `theme()`, todo será reemplazado con las modificaciones predefinidas del `theme_XYZ()` que escogiste. No obstante, al hacerlo al revés, primero `theme_XYZ()` y luego `theme()`, primero modificamos todo con un tema predefinido, y luego realizamos modificaciones con `theme()` sobre el `theme_XYZ()` para dejar lo que nos guste pero modificar aquello que no deseamos. Recuerda que `theme_XYZ()` es un ejemplo que puede ser reemplazado con cualquier tema predefinido de `ggplot` o `ggthemes`.
+
+Carga la base de datos `gapminder` para realizar el siguiente gráfico ([click aquí para verlo](https://drive.google.com/file/d/19hocB0GlowNKcQPdgwyZv1kcbqyb4Iw9/view?usp=sharing)).
+
+![](images/ejercicio2.png)
+
+Puedes intentar hacerlo todo desde cero por ti mismo como un reto personal, pero si aún no te sientes muy familiarizado con ggplot2, solo sigue las instrucciones brindadas a continuación. Sin embargo las instrucciones demandan que recuerdes el uso de ciertas funciones de `ggplot2`:
+
+1.  Filtra la base de datos para quedarte solo con los datos de los países Perú, Colombia, Chile y Ecuador.
+2.  Utiliza como eje x el año (`year`), y como eje y el tamaño poblacional (`pop`) didivido entre 1 millón para expresar ese eje en millones. Colorea por el país (`country`).
+3.  Genera una geométrica de líneas.
+4.  Genera una línea roja vertical con intercepto en 1990 porque deseas mostrar esa fecha como punto de referencia entre los países. Selecciona el tipo de línea con guiones.
+5.  Define breaks de cada eje según la figura del link.
+6.  Usa la paleta `"Set2"` con una función que te permita colocar paletas (colores discretos)
+7.  Cambia el título de los ejes x e y por los respectivos en la figura.
+8.  Define el título y subtítulo.
+9.  Usa el tema `theme_solarized()`. Del cual mantendremos casi todo. Las modificaciones que haremos se realizarán seguido dentro de `theme()`.
+10. Usando `ggThemeAssist` elimina el color de fondo de la leyenda, o cólocalo como blanco. Cambia la `face` del título de `plain` (texto plano) a `bold` (negritas).
+11. Intenta cambiar el orden de `theme()` y `theme_solarized()` para que veas la influencia del orden.
+12. Regresa el gráfico al orden `theme_solarized()` y luego `theme()`.
+13. Cambiemos el color de las letras. Esto no se hace rápidamente con `ggThemeAssist`. Escribe los argumentos dentro de `theme()`: para modificar todo el texto del gráfico (de la leyenda y de los ejes) `text =`, y para modificar todos los títulos (del plot y de los ejes) `title =`. Como ambos son elementos de texto, debes escribir: `text=element_text(), title=element_text()`.
+14. Dentro de cada elemento de texto simplemente cambia el color a negro con `color="black"`. Resultado: `text = element_text(color="black"), title = element_text(color="black")`.
+
+```{r eval=FALSE}
+data(gapminder)
+# x=year
+# y=pop (en millones)
+# country (4 paises sudamericanos con mas pbi)
+# linea en 1990 intercepto
+
+gapminder %>% 
+  filter(continent=="Americas")%>% 
+  group_by(year,country,gdpPercap) %>% 
+  arrange() %>% select(country) %>% unique()
+
+gapminder %>% filter(continent=="Americas") %>%
+  group_by(country) %>% summarise(gp=sum(gdpPercap)) %>% 
+  arrange()
+
+sudamerica <- c("Argentina","Bolivia", "Brazil",
+                "Chile")
+gapmin <- gapminder %>% filter(country %in% sudamerica)
+
+
+  ggplot(data=gapmin,aes(x=factor(year),
+                         y=pop/10^6,color=country))+
+  geom_smooth(data=gapmin,aes(x=year,
+                         y=pop/10^6,color=country),
+              method = "lm",se=F)+
+    geom_vline(xintercept = 1990,lty=2,size=0.8,color="red")+
+    scale_color_brewer(palette = "Set2") + 
+    scale_color_discrete(labels=c("Brazil"="Brasil"))+
+    theme_solarized() + 
+    theme(plot.subtitle = element_text(size = 11,
+    colour = "black"), 
+    panel.grid.major = element_line(colour = "gray50"),
+    panel.grid.minor = element_line(linetype = "blank"),
+    plot.title = element_text(size = 15,
+        face = "bold"), legend.title = element_text(size = 12,
+        face = "bold"),
+    plot.background = element_blank(),
+    legend.key = element_rect(fill = NA),
+    legend.background = element_rect(fill = NA)) +
+    labs(title = "Tendenia poblacional", x = "Año",
+    y = "Población en millones", colour = "Paises",
+    subtitle = "Datos tomados de los paises sudamericanos con mayor PBI")
+```
+
+# Ejercicio 3:
+
+Carga la base de datos `dat` usando el siguiente código para obtenerla desde Drive Google y realizar el siguiente gráfico ([click aquí para verlo](https://drive.google.com/file/d/1jdl744Tt9WLMy16xEQ8jHAjY84q9GYit/view?usp=sharing)).
+
+![](images/brave_FGmhJ7BNjY.png)
+
+![]()
+
+```{r eval=FALSE}
+id <- "1Ir5XteDKcStjsUlnMXuYKI6s2Qscmgy-"
+dat <- read.csv(sprintf("https://docs.google.com/uc?id=%s&export=download", id))
+```
+
+Puedes intentar hacerlo todo desde cero por ti mismo como un reto personal, pero si aún no te sientes muy familiarizado con ggplot2, solo sigue las instrucciones brindadas a continuación. Sin embargo las instrucciones demandan que recuerdes el uso de ciertas funciones de `ggplot2`:
+
+1.  Dado que en ggplot solo puedes colocar una columna en el eje x, una en el eje y, y una como relleno, la tabla actual no nos es útil. Debemos convertirla en tabla larga con la función `gather()` de la librería `dplyr`. Apila las columnas 3 a la 7.
+
+2.  Seguido, usa mutate para convertir los valores `0` a `NA` con la función `ifelse()`. Esto es necesario porque un argumento dentro de las funciones de coloreo/rellenado permite colocar un color a los valores `NA`. Por ejemplo: `na.value = "grey90"`, hará que los `NA` sean celdas grises muy claro en el gráfico. Esto lo usaremos más adelante.
+
+3.  Crea el `ggplot()` definiendo como aestéticas `x= forcats::fct_rev(categoria)`. Esto implica usar la función `fct_rev()` de la librería `forcats`. Para entender mejor: `fct_rev()` significa factor reverse para invertir el orden de un factor. La siguiente aestética debe ser el eje y conteniendo las etiquetas apiladas por `gather()` con el nombre `key`. Por último usa `value2` para rellenar, pero convirtiéndolo en un factor para generar rellenado discreto.
+
+4.  Coloca la geométrica respectiva para hacer tiles, indicando color `"white"` para que tenga bordes blancos y `size = 0.2` para hacer las líneas de borde más sutiles.
+
+5.  Gira el gráfico para que el eje y tenga los valores de la columna `categoria`.
+
+6.  Coloca los títulos del gráfico y ejes como corresponda.
+
+7.  Usa la función de rellenado de `ggthemes` para rellenar con la paleta `"Tableau 20"`. Adiciona el argumento `na.value = "grey90"` para que los `NA` se rellenen con gris claro, y el argumento: `breaks=c(1:10,14,16)` para que las leyendas de rellenado contengan todos los valores de conteo de cada tile pero sin menciona al `NA`.
+
+8.  Usa `ggThemeAssist` para definir:
+
+    -   El título del plot en negrita tamaño 13.
+
+    -   Los grid mayores y menores del panel gráfico como `None` o `element_blank()` para que desaparezcan.
+
+    -   Poner el título de la leyenda en negritas.
+
+    -   Tamaño del texto del eje x en 9, y del eje y en 3.
+
+    -   Color del panel como `None` para que desaparezca el borde del panel.
+
+    -   **Adicionalmente**, puedes ponerle margenes al gráfico como vimos en el ejercicio anterior con el argumento `plot.margin=unit(c(1,1,1,1),"cm")`.
+
+9.  Finalmente, puedes separar las observaciones adicionando una faceta para crear un gráfico para cada nivel de la columna `factor1`.
+
+```{r eval=FALSE}
+dat %>% gather(key=grupos,value = valores,3:8) %>% 
+  mutate(valores=ifelse(valores==0,NA,valores)) %>% 
+  ggplot(aes(x=grupos,y=fct_rev(categoria),fill=factor(valores)))+
+  geom_tile(color="white",size=0.2)+
+  scale_fill_tableau(palette="Tableau 20",
+                     breaks=c(1:10,14,16))+
+  facet_wrap(~factor1) + 
+  theme(panel.grid.minor = element_line(linetype = "blank"),
+        panel.grid.major = element_line(linetype = "blank"),
+    plot.title = element_text(size = 16, face = "bold"),
+    legend.title = element_text(size = 12,face = "bold"),
+    panel.background = element_rect(fill = "gray90"),
+    legend.key = element_rect(fill = NA),
+    legend.background = element_rect(fill = NA)) +
+  labs(title = "Abundancia de observaciones",
+    x = NULL, y = NULL,fill="Conteo",
+    plot.margin=unit(c(1,1,1,1),"cm"))
+```
